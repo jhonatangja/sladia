@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard SLA 7.1 - Simulador de Abrangência</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem; -webkit-appearance: none; appearance: none; }
+        .clickable-card:hover { transform: translateY(-2px); cursor: pointer; filter: brightness(0.95); transition: all 0.2s; }
+        
+        /* Estilo do Toggle Switch */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #68D391;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #68D391;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800">
+
+    <div id="modal-prazos" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden flex flex-col max-h-[80vh]">
+            <div class="bg-blue-900 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold"><i class="fas fa-calendar-check mr-2"></i> Tabela de Prazos (Col X)</h3>
+                <button onclick="toggleModal('modal-prazos')" class="hover:bg-blue-800 px-2 rounded"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="overflow-y-auto custom-scrollbar p-4">
+                <table class="w-full text-sm text-left border-collapse">
+                    <thead class="bg-gray-100 text-gray-600 sticky top-0">
+                        <tr>
+                            <th class="p-2 border-b">Cidade</th>
+                            <th class="p-2 border-b text-right">Prazo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="prazos-list-body" class="divide-y divide-gray-100 text-xs"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-global-audit" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden flex flex-col max-h-[80vh]">
+            <div id="modal-global-header" class="bg-gray-800 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold text-lg"><span id="modal-global-title">Auditando Pacotes</span></h3>
+                <button onclick="toggleModal('modal-global-audit')" class="hover:bg-white/20 px-2 rounded"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-2 bg-gray-50 border-b flex justify-between items-center">
+                <p class="text-xs text-gray-500">Total na lista: <span id="modal-global-count" class="font-bold text-gray-800">0</span></p>
+                <button onclick="copyGlobalCodes()" class="bg-gray-800 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-gray-700">
+                    <i class="fas fa-copy mr-1"></i> Copiar Códigos
+                </button>
+            </div>
+            <div class="overflow-y-auto custom-scrollbar flex-1 p-0">
+                <table class="w-full text-xs text-left">
+                    <thead class="bg-gray-100 text-gray-600 sticky top-0 shadow-sm">
+                        <tr>
+                            <th class="px-4 py-2">Código</th>
+                            <th class="px-4 py-2">Cidade</th>
+                            <th class="px-4 py-2">Motorista</th>
+                            <th class="px-4 py-2">Problema/Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-global-body" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <header class="bg-slate-900 text-white p-4 shadow-xl sticky top-0 z-50">
+        <div class="container mx-auto flex flex-col xl:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="bg-white/10 p-2 rounded-lg">
+                    <i class="fas fa-chart-line text-2xl text-yellow-400"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight uppercase">SLA Intelligence</h1>
+                    <p class="text-gray-400 text-xs">Análise de Impacto & Performance</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-col md:flex-row gap-2 w-full xl:w-auto items-center">
+                <div class="flex items-center mr-2 bg-slate-800 p-2 rounded-lg border border-slate-700 h-[42px]">
+                    <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="toggle" id="toggleQuiri" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-600 transition-all duration-300 left-0" checked/>
+                        <label for="toggleQuiri" class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-600 cursor-pointer"></label>
+                    </div>
+                    <label for="toggleQuiri" class="text-xs font-bold text-white cursor-pointer select-none">
+                        Incluir Região Quirinópolis
+                    </label>
+                </div>
+
+                <button onclick="toggleModal('modal-prazos')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-lg text-sm font-bold transition shadow-lg w-full md:w-auto h-[42px]">
+                    <i class="fas fa-calendar-alt mr-2"></i> Prazos
+                </button>
+
+                <div class="relative w-full md:w-40 h-[42px]">
+                    <select id="filterCity" class="w-full h-full bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-2.5 focus:ring-blue-500 focus:border-blue-500 cursor-pointer font-medium">
+                        <option value="">Todas as Cidades</option>
+                    </select>
+                </div>
+
+                <div class="relative w-full md:w-40 h-[42px]">
+                    <select id="filterDriver" class="w-full h-full bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-2.5 focus:ring-blue-500 focus:border-blue-500 cursor-pointer font-medium">
+                        <option value="">Todos Motoristas</option>
+                    </select>
+                </div>
+
+                <label class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg cursor-pointer text-sm font-bold transition shadow-lg flex items-center justify-center w-full md:w-auto whitespace-nowrap h-[42px]">
+                    <i class="fas fa-file-excel mr-2"></i> Upload
+                    <input type="file" id="fileUpload" accept=".xlsx, .xls" class="hidden"/>
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto p-4 space-y-6 pb-20">
+        
+        <div id="loading" class="hidden py-16 text-center">
+            <i class="fas fa-circle-notch fa-spin text-5xl text-blue-600"></i>
+            <p class="mt-4 text-gray-500 font-medium text-lg animate-pulse">Calculando impactos no SLA Global...</p>
+        </div>
+
+        <div id="dashboard" class="hidden space-y-8">
+
+            <div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
+                <div class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-gray-600">
+                    <p class="text-[10px] text-gray-500 font-bold uppercase">Total Pacotes</p>
+                    <h3 class="text-2xl font-black text-gray-800 mt-1" id="kpi-total">0</h3>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-indigo-500 relative overflow-hidden">
+                    <div class="absolute right-0 top-0 p-2 text-indigo-100 text-4xl opacity-20"><i class="fas fa-percent"></i></div>
+                    <p class="text-[10px] text-indigo-600 font-bold uppercase">SLA GLOBAL</p>
+                    <h3 class="text-2xl font-black text-indigo-600 mt-1" id="kpi-sla">0.0%</h3>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-emerald-500">
+                    <p class="text-[10px] text-emerald-600 font-bold uppercase">Entregues</p>
+                    <h3 class="text-2xl font-black text-emerald-600 mt-1" id="kpi-entregue">0</h3>
+                </div>
+                <div onclick="openGlobalPacketList('problem')" class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-red-500 clickable-card group relative">
+                    <div class="absolute top-2 right-2 text-red-200 group-hover:text-red-500 transition"><i class="fas fa-external-link-alt text-xs"></i></div>
+                    <p class="text-[10px] text-red-500 font-bold uppercase group-hover:underline">Problemáticos</p>
+                    <h3 class="text-2xl font-black text-red-500 mt-1" id="kpi-problema">0</h3>
+                </div>
+                <div onclick="openGlobalPacketList('open')" class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-blue-400 clickable-card group relative">
+                    <div class="absolute top-2 right-2 text-blue-200 group-hover:text-blue-500 transition"><i class="fas fa-external-link-alt text-xs"></i></div>
+                    <p class="text-[10px] text-blue-500 font-bold uppercase group-hover:underline">Em Aberto</p>
+                    <h3 class="text-2xl font-black text-blue-500 mt-1" id="kpi-aberto">0</h3>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-orange-400">
+                    <p class="text-[10px] text-orange-500 font-bold uppercase">Erro Triagem</p>
+                    <h3 class="text-2xl font-black text-orange-500 mt-1" id="kpi-triagem">0</h3>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[420px]">
+                
+                <div class="bg-white rounded-xl shadow-sm border border-emerald-100 flex flex-col h-full overflow-hidden">
+                    <div class="bg-gradient-to-r from-emerald-600 to-emerald-500 p-3 flex justify-between items-center text-white shrink-0">
+                        <span class="font-bold flex items-center text-xs uppercase"><i class="fas fa-medal mr-2"></i> Alta Performance</span>
+                    </div>
+                    <div class="grid grid-cols-12 gap-1 px-3 py-2 bg-emerald-50 text-[9px] uppercase font-bold text-emerald-800 border-b shrink-0">
+                        <div class="col-span-5">Cidade</div>
+                        <div class="col-span-3 text-right">Vol</div>
+                        <div class="col-span-4 text-right">SLA%</div>
+                    </div>
+                    <div id="best-list" class="overflow-y-auto custom-scrollbar flex-1 p-2 space-y-1"></div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-orange-100 flex flex-col h-full overflow-hidden">
+                    <div class="bg-gradient-to-r from-orange-500 to-orange-400 p-3 flex justify-between items-center text-white shrink-0">
+                        <span class="font-bold flex items-center text-xs uppercase"><i class="fas fa-thumbs-down mr-2"></i> Pior SLA (%)</span>
+                    </div>
+                    <div class="grid grid-cols-12 gap-1 px-3 py-2 bg-orange-50 text-[9px] uppercase font-bold text-orange-800 border-b shrink-0">
+                        <div class="col-span-5">Cidade</div>
+                        <div class="col-span-3 text-right">Vol</div>
+                        <div class="col-span-4 text-right">SLA%</div>
+                    </div>
+                    <div id="worst-list" class="overflow-y-auto custom-scrollbar flex-1 p-2 space-y-1"></div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-md border-2 border-red-500 flex flex-col h-full overflow-hidden relative">
+                    <div class="absolute top-0 right-0 bg-red-600 text-white text-[9px] px-2 py-0.5 rounded-bl font-bold">Foco Aqui</div>
+                    <div class="bg-gray-800 p-3 flex justify-between items-center text-white shrink-0">
+                        <span class="font-bold flex items-center text-xs uppercase text-red-400"><i class="fas fa-bomb mr-2"></i> Ofensores (Impacto)</span>
+                    </div>
+                    <div class="grid grid-cols-12 gap-1 px-3 py-2 bg-gray-100 text-[9px] uppercase font-bold text-gray-600 border-b shrink-0">
+                        <div class="col-span-5">Cidade</div>
+                        <div class="col-span-3 text-right">Falhas</div>
+                        <div class="col-span-4 text-right text-red-600">Impacto Global</div>
+                    </div>
+                    <div id="impact-list" class="overflow-y-auto custom-scrollbar flex-1 p-2 space-y-1 bg-gray-50"></div>
+                </div>
+
+            </div>
+
+            <div id="city-details-panel" class="hidden space-y-6 animate-fade-in-up">
+                
+                <div class="bg-white border border-indigo-100 rounded-xl shadow-md overflow-hidden">
+                    <div class="bg-indigo-600 p-4 text-white flex justify-between items-center">
+                        <h3 class="font-bold text-lg"><i class="fas fa-id-card-clip mr-2"></i> Top 10 Motoristas Críticos</h3>
+                        <div class="text-xs bg-indigo-800 px-3 py-1 rounded-full font-semibold border border-indigo-400">
+                            <span id="detail-city-name"></span>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-indigo-50 text-indigo-900 text-xs uppercase font-bold">
+                                <tr>
+                                    <th class="px-6 py-3">Entregador</th>
+                                    <th class="px-4 py-3 text-right">Volume</th>
+                                    <th class="px-4 py-3 text-right text-emerald-600">Entregue</th>
+                                    <th class="px-4 py-3 text-right text-red-500">Problema</th>
+                                    <th class="px-4 py-3 text-right text-blue-500">Aberto</th>
+                                    <th class="px-6 py-3 text-right">SLA %</th>
+                                </tr>
+                            </thead>
+                            <tbody id="driver-rank-list" class="divide-y divide-gray-100 bg-white"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-gray-200 rounded-xl shadow-md flex flex-col h-[500px]">
+                    <div class="p-4 border-b bg-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-lg"><i class="fas fa-search mr-2 text-orange-500"></i> Auditoria de Pendências</h3>
+                            <p class="text-xs text-gray-500">Listagem de pacotes não entregues</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="filterPackets('all')" id="btn-pkt-all" class="px-3 py-1 text-xs font-bold rounded shadow bg-white border">Todos (<span id="count-all">0</span>)</button>
+                            <button onclick="filterPackets('problem')" id="btn-pkt-prob" class="px-3 py-1 text-xs font-bold rounded hover:bg-white text-red-600">Problemáticos (<span id="count-prob">0</span>)</button>
+                            <button onclick="filterPackets('open')" id="btn-pkt-open" class="px-3 py-1 text-xs font-bold rounded hover:bg-white text-blue-600">Em Aberto (<span id="count-open">0</span>)</button>
+                        </div>
+                        <button onclick="copyTableCodes()" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded text-xs font-bold transition flex items-center">
+                            <i class="fas fa-copy mr-2"></i> Copiar
+                        </button>
+                    </div>
+                    <div class="overflow-auto flex-1 custom-scrollbar">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-gray-100 text-gray-600 uppercase font-bold sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-2">Código</th>
+                                    <th class="px-4 py-2">Motorista</th>
+                                    <th class="px-4 py-2">Motivo / Status</th>
+                                    <th class="px-4 py-2 text-center">Tipo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="packet-list-body" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-200">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><i class="fas fa-table mr-2 text-gray-400"></i> Visão Geral por Praça</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-50 text-gray-600 uppercase text-[10px] font-bold border-b">
+                            <tr>
+                                <th class="px-6 py-3">Cidade</th>
+                                <th class="px-4 py-3 text-right">Volume</th>
+                                <th class="px-4 py-3 text-right text-emerald-600">Entregue</th>
+                                <th class="px-4 py-3 text-right text-red-500">Problema</th>
+                                <th class="px-4 py-3 text-right text-blue-500">Aberto</th>
+                                <th class="px-6 py-3 text-right">SLA %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="main-table" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const RAW_WHITELIST = [
+            "Rio Verde", "Jataí", "Mineiros", "Quirinópolis", "Santa Helena de Goiás", 
+            "Acreúna", "Santa Rita do Araguaia", "São Simão", "Serranópolis", "Cachoeira Alta", 
+            "Montividiu", "Maurilândia", "Itarumã", "Inaciolândia", "Paranaiguara", "Aporé", 
+            "Santo Antônio da Barra", "Itajá", "Caçu", "Porteirão", "Perolândia", 
+            "Aparecida do Rio Doce", "Turvelândia", "Castelândia", "Portelândia", 
+            "Gouvelândia", "Lagoa Santa", "Itaruma", "Jatai"
+        ];
+        const WHITELIST = RAW_WHITELIST.map(c => normalizeStr(c));
+
+        // Lista de cidades para simulação de exclusão
+        const QUIRINOPOLIS_BLOCK = [
+            "QUIRINOPOLIS",
+            "SAO SIMAO",
+            "ITARUMA",
+            "PARANAIGUARA",
+            "CACHOEIRA ALTA",
+            "APORE",
+            "GOUVELANDIA",
+            "CACU",
+            "INACIOLANDIA",
+            "ITAJA",
+            "APARECIDA DO RIO DOCE",
+            "CASTELANDIA",
+            "LAGOA SANTA"
+        ];
+
+        let globalPackets = [];
+        let filteredPackets = []; 
+        let cityDeadlines = {};
+        let grandTotalBase = 0; // Para cálculo do impacto
+
+        document.getElementById('fileUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const workbook = XLSX.read(evt.target.result, { type: 'binary' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(sheet, { header: "A", defval: "" });
+                setTimeout(() => processData(json), 100);
+            };
+            reader.readAsBinaryString(file);
+        });
+
+        document.getElementById('filterCity').addEventListener('change', updateDashboard);
+        document.getElementById('filterDriver').addEventListener('change', updateDashboard);
+        document.getElementById('toggleQuiri').addEventListener('change', updateDashboard);
+
+        function normalizeStr(str) {
+            return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+        }
+
+        function processData(rows) {
+            globalPackets = [];
+            cityDeadlines = {};
+            const dataRows = rows.slice(1);
+
+            dataRows.forEach(row => {
+                const cityRaw = String(row.AD || "NÃO IDENTIFICADO").trim();
+                const cityNorm = normalizeStr(cityRaw);
+                const isTriagem = !WHITELIST.includes(cityNorm);
+                const statusT = String(row.T || "").trim().toUpperCase();
+                const problemS = String(row.S || "").trim();
+                const prazoX = String(row.X || "").trim();
+
+                if (!isTriagem && prazoX && !cityDeadlines[cityRaw]) cityDeadlines[cityRaw] = prazoX;
+
+                globalPackets.push({
+                    id: row.A, city: cityRaw, cityNorm: cityNorm, driver: String(row.P || "SEM MOTORISTA").toUpperCase().trim(),
+                    isEntregue: (statusT === 'Y'), hasProblem: (statusT !== 'Y' && problemS !== ""), isOpen: (statusT !== 'Y' && problemS === ""),
+                    problemDesc: problemS, isTriagem: isTriagem
+                });
+            });
+
+            populateFilters();
+            renderPrazosTable();
+            updateDashboard();
+            
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+        }
+
+        function populateFilters() {
+            const cities = [...new Set(globalPackets.map(p => p.city).filter(c => c))].sort();
+            const drivers = [...new Set(globalPackets.map(p => p.driver).filter(d => d))].sort();
+            const selCity = document.getElementById('filterCity');
+            const selDriver = document.getElementById('filterDriver');
+
+            selCity.innerHTML = '<option value="">Todas as Cidades</option>';
+            selDriver.innerHTML = '<option value="">Todos Motoristas</option>';
+
+            cities.forEach(c => {
+                const label = !WHITELIST.includes(normalizeStr(c)) ? `${c} (Triagem)` : c;
+                selCity.innerHTML += `<option value="${normalizeStr(c)}">${label}</option>`;
+            });
+            drivers.forEach(d => selDriver.innerHTML += `<option value="${d}">${d}</option>`);
+        }
+
+        function renderPrazosTable() {
+            const tbody = document.getElementById('prazos-list-body');
+            tbody.innerHTML = '';
+            RAW_WHITELIST.sort().forEach(city => {
+                let prazo = "-";
+                const cityNorm = normalizeStr(city);
+                const foundKey = Object.keys(cityDeadlines).find(k => normalizeStr(k) === cityNorm);
+                if(foundKey) prazo = cityDeadlines[foundKey];
+                tbody.innerHTML += `<tr><td class="p-2 border-b font-medium">${city}</td><td class="p-2 border-b text-right text-gray-500">${prazo}</td></tr>`;
+            });
+        }
+
+        function updateDashboard() {
+            const selectedCityNorm = document.getElementById('filterCity').value;
+            const selectedDriver = document.getElementById('filterDriver').value;
+            const includeQuiri = document.getElementById('toggleQuiri').checked;
+
+            // Filtro
+            let currentData = globalPackets.filter(p => {
+                let matchCity = selectedCityNorm === "" || p.cityNorm === selectedCityNorm;
+                let matchDriver = selectedDriver === "" || p.driver === selectedDriver;
+                
+                // Se o toggle estiver DESLIGADO (!includeQuiri), removemos as cidades da lista
+                let matchRegion = true;
+                if (!includeQuiri && QUIRINOPOLIS_BLOCK.includes(p.cityNorm)) {
+                    matchRegion = false;
+                }
+
+                return matchCity && matchDriver && matchRegion;
+            });
+
+            // Definir Base Total para cálculo de impacto
+            // Se não tiver filtro, a base é o total geral da leitura atual
+            grandTotalBase = currentData.length;
+
+            updateKPICards(currentData);
+
+            // Stats
+            const cityStats = {};
+            currentData.forEach(p => {
+                if(!cityStats[p.city]) cityStats[p.city] = { name: p.city, total: 0, ent: 0, prob: 0, open: 0, isTriagem: p.isTriagem };
+                const s = cityStats[p.city];
+                s.total++;
+                if(p.isEntregue) s.ent++;
+                else if(p.hasProblem) s.prob++;
+                else s.open++;
+            });
+
+            const cityArray = Object.values(cityStats).map(c => {
+                c.sla = c.total > 0 ? ((c.ent / c.total) * 100).toFixed(1) : 0;
+                // CÁLCULO DE IMPACTO GLOBAL: (Falhas da Cidade / Total Geral Filtrado)
+                // Falhas = Problema + Aberto (ou seja, Total - Entregue)
+                const failures = c.total - c.ent;
+                c.globalImpact = grandTotalBase > 0 ? ((failures / grandTotalBase) * 100).toFixed(2) : 0;
+                return c;
+            });
+
+            renderCityRankings(cityArray);
+            renderMainTable(cityArray);
+
+            const detailsPanel = document.getElementById('city-details-panel');
+            if (selectedCityNorm !== "") {
+                detailsPanel.classList.remove('hidden');
+                document.getElementById('detail-city-name').innerText = document.getElementById('filterCity').options[document.getElementById('filterCity').selectedIndex].text;
+                renderDriverAnalysis(currentData);
+                renderPacketAudit(currentData);
+            } else {
+                detailsPanel.classList.add('hidden');
+            }
+        }
+
+        function updateKPICards(data) {
+            const total = data.length;
+            const entregue = data.filter(p => p.isEntregue).length;
+            const slaGlobal = total > 0 ? ((entregue / total) * 100).toFixed(1) + '%' : "0.0%";
+            document.getElementById('kpi-total').innerText = total;
+            document.getElementById('kpi-sla').innerText = slaGlobal;
+            document.getElementById('kpi-entregue').innerText = entregue;
+            document.getElementById('kpi-problema').innerText = data.filter(p => p.hasProblem).length;
+            document.getElementById('kpi-aberto').innerText = data.filter(p => p.isOpen).length;
+            document.getElementById('kpi-triagem').innerText = data.filter(p => p.isTriagem).length;
+        }
+
+        function renderCityRankings(list) {
+            // 1. Melhores (SLA > 80)
+            const best = list.filter(c => parseFloat(c.sla) >= 80).sort((a,b) => b.total - a.total);
+            document.getElementById('best-list').innerHTML = best.length ? best.map(c => `
+                <div class="grid grid-cols-12 gap-1 items-center p-2 border-b border-gray-100 hover:bg-emerald-50 text-xs">
+                    <div class="col-span-5 font-bold truncate text-gray-700" title="${c.name}">${c.name}</div>
+                    <div class="col-span-3 text-right text-gray-500">${c.total}</div>
+                    <div class="col-span-4 text-right font-black text-emerald-600">${c.sla}%</div>
+                </div>`).join('') : '<div class="p-4 text-center text-gray-400 text-xs">Vazio.</div>';
+
+            // 2. Piores (SLA < 80)
+            const worst = list.filter(c => parseFloat(c.sla) < 80).sort((a,b) => a.sla - b.sla);
+            document.getElementById('worst-list').innerHTML = worst.length ? worst.map(c => `
+                <div class="grid grid-cols-12 gap-1 items-center p-2 border-b border-gray-100 hover:bg-orange-50 text-xs">
+                    <div class="col-span-5 font-bold truncate text-gray-700" title="${c.name}">${c.name}</div>
+                    <div class="col-span-3 text-right text-gray-500">${c.total}</div>
+                    <div class="col-span-4 text-right font-black text-orange-600">${c.sla}%</div>
+                </div>`).join('') : '<div class="p-4 text-center text-gray-400 text-xs">Vazio.</div>';
+
+            // 3. OFENSORES DO GLOBAL (Maior Impacto Negativo)
+            // Ordenar por globalImpact (descrescente)
+            const impactList = list.sort((a,b) => b.globalImpact - a.globalImpact).slice(0, 50); // Top 50
+            document.getElementById('impact-list').innerHTML = impactList.map(c => {
+                const failures = c.total - c.ent;
+                // Se impacto for muito baixo, nem mostra, ou destaca os grandes
+                const isHeavy = parseFloat(c.globalImpact) > 1.0; 
+                return `
+                <div class="grid grid-cols-12 gap-1 items-center p-2 border-b border-gray-200 hover:bg-red-50 text-xs ${isHeavy ? 'bg-red-50/50' : ''}">
+                    <div class="col-span-5 font-bold truncate text-gray-800" title="${c.name}">${c.name}</div>
+                    <div class="col-span-3 text-right text-gray-500">${failures}</div>
+                    <div class="col-span-4 text-right font-black text-red-600">-${c.globalImpact}%</div>
+                </div>`;
+            }).join('');
+        }
+
+        let globalAuditList = [];
+        function openGlobalPacketList(type) {
+            const selectedCityNorm = document.getElementById('filterCity').value;
+            const selectedDriver = document.getElementById('filterDriver').value;
+            const includeQuiri = document.getElementById('toggleQuiri').checked;
+
+            let sourceData = globalPackets.filter(p => {
+                let matchCity = selectedCityNorm === "" || p.cityNorm === selectedCityNorm;
+                let matchDriver = selectedDriver === "" || p.driver === selectedDriver;
+                let matchRegion = true;
+                if (!includeQuiri && QUIRINOPOLIS_BLOCK.includes(p.cityNorm)) matchRegion = false;
+                
+                return matchCity && matchDriver && matchRegion;
+            });
+
+            const header = document.getElementById('modal-global-header');
+            const title = document.getElementById('modal-global-title');
+            if (type === 'problem') {
+                globalAuditList = sourceData.filter(p => p.hasProblem);
+                header.className = "bg-red-600 text-white p-4 flex justify-between items-center";
+                title.innerText = "Pacotes Problemáticos";
+            } else if (type === 'open') {
+                globalAuditList = sourceData.filter(p => p.isOpen);
+                header.className = "bg-blue-500 text-white p-4 flex justify-between items-center";
+                title.innerText = "Pacotes Em Aberto";
+            }
+            document.getElementById('modal-global-count').innerText = globalAuditList.length;
+            renderGlobalAuditTable();
+            toggleModal('modal-global-audit');
+        }
+        function renderGlobalAuditTable() {
+            const tbody = document.getElementById('modal-global-body');
+            const viewList = globalAuditList.slice(0, 500); 
+            tbody.innerHTML = viewList.length ? viewList.map(p => `
+                <tr class="hover:bg-gray-50 border-b border-gray-100">
+                    <td class="px-4 py-2 font-mono font-bold select-all">${p.id}</td>
+                    <td class="px-4 py-2">${p.city}</td>
+                    <td class="px-4 py-2 text-gray-600">${p.driver}</td>
+                    <td class="px-4 py-2 italic text-gray-500 truncate max-w-xs">${p.problemDesc || '-'}</td>
+                </tr>`).join('') : `<tr><td colspan="4" class="p-8 text-center text-gray-400">Vazio.</td></tr>`;
+            if (globalAuditList.length > 500) tbody.innerHTML += `<tr><td colspan="4" class="p-2 text-center text-xs text-gray-400 bg-gray-50">Exibindo 500 de ${globalAuditList.length}...</td></tr>`;
+        }
+        function copyGlobalCodes() {
+            if(!globalAuditList.length) return alert("Vazio.");
+            navigator.clipboard.writeText(globalAuditList.map(p => p.id).join('\n')).then(() => alert("Copiado!"));
+        }
+        function toggleModal(id) { document.getElementById(id).classList.toggle('hidden'); }
+        window.toggleModal = toggleModal; window.openGlobalPacketList = openGlobalPacketList; window.copyGlobalCodes = copyGlobalCodes;
+
+        function renderDriverAnalysis(packets) {
+            const driverStats = {};
+            packets.forEach(p => {
+                if(!driverStats[p.driver]) driverStats[p.driver] = { name: p.driver, total: 0, ok: 0, nok: 0, open: 0 };
+                driverStats[p.driver].total++;
+                if(p.isEntregue) driverStats[p.driver].ok++; else if(p.hasProblem) driverStats[p.driver].nok++; else driverStats[p.driver].open++;
+            });
+            const drivers = Object.values(driverStats).map(d => { d.sla = d.total > 0 ? ((d.ok / d.total) * 100).toFixed(1) : 0; return d; }).filter(d => parseFloat(d.sla) < 90).sort((a,b) => b.total - a.total).slice(0, 10);
+            document.getElementById('driver-rank-list').innerHTML = drivers.length ? drivers.map(d => `
+                <tr class="hover:bg-indigo-50 border-b border-indigo-50">
+                    <td class="px-6 py-2 font-bold text-gray-700">${d.name}</td>
+                    <td class="px-4 py-2 text-right font-mono">${d.total}</td>
+                    <td class="px-4 py-2 text-right text-emerald-600">${d.ok}</td>
+                    <td class="px-4 py-2 text-right text-red-500 font-bold">${d.nok}</td>
+                    <td class="px-4 py-2 text-right text-blue-500 font-bold">${d.open}</td>
+                    <td class="px-6 py-2 text-right font-black text-red-600">${d.sla}%</td>
+                </tr>`).join('') : '<tr><td colspan="6" class="p-4 text-center text-gray-500 italic">Nenhum crítico.</td></tr>';
+        }
+        
+        let auditPacketsCache = [];
+        function renderPacketAudit(packets) {
+            auditPacketsCache = packets.filter(p => !p.isEntregue);
+            document.getElementById('count-all').innerText = auditPacketsCache.length;
+            document.getElementById('count-prob').innerText = auditPacketsCache.filter(p => p.hasProblem).length;
+            document.getElementById('count-open').innerText = auditPacketsCache.filter(p => p.isOpen).length;
+            filterPackets('all');
+        }
+        function filterPackets(mode) {
+            const btnAll = document.getElementById('btn-pkt-all'); const btnProb = document.getElementById('btn-pkt-prob'); const btnOpen = document.getElementById('btn-pkt-open');
+            [btnAll, btnProb, btnOpen].forEach(b => b.className = "px-3 py-1 text-xs font-bold rounded hover:bg-white transition text-gray-500");
+            let list = [];
+            if(mode === 'all') { list = auditPacketsCache; btnAll.className = "px-3 py-1 text-xs font-bold rounded bg-white shadow border border-gray-200 text-gray-800"; }
+            if(mode === 'problem') { list = auditPacketsCache.filter(p => p.hasProblem); btnProb.className = "px-3 py-1 text-xs font-bold rounded bg-red-50 shadow border border-red-200 text-red-700"; }
+            if(mode === 'open') { list = auditPacketsCache.filter(p => p.isOpen); btnOpen.className = "px-3 py-1 text-xs font-bold rounded bg-blue-50 shadow border border-blue-200 text-blue-700"; }
+            filteredPackets = list;
+            const tbody = document.getElementById('packet-list-body');
+            tbody.innerHTML = list.length ? list.map(p => `
+                <tr class="hover:bg-gray-50 border-b border-gray-100">
+                    <td class="px-4 py-2 font-mono font-bold select-all">${p.id}</td>
+                    <td class="px-4 py-2 text-gray-600 text-[10px]">${p.driver}</td>
+                    <td class="px-4 py-2 text-gray-500 italic truncate max-w-xs">${p.problemDesc || '-'}</td>
+                    <td class="px-4 py-2 text-center">${p.hasProblem ? '<span class="px-2 py-0.5 rounded bg-red-100 text-red-700 text-[9px] font-bold">PROBLEMA</span>' : '<span class="px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-[9px] font-bold">ABERTO</span>'}</td>
+                </tr>`).join('') : `<tr><td colspan="4" class="p-8 text-center text-gray-400">Vazio.</td></tr>`;
+        }
+        function copyTableCodes() {
+            if(!filteredPackets.length) return alert("Vazio.");
+            navigator.clipboard.writeText(filteredPackets.map(p => p.id).join('\n')).then(() => alert("Copiado!"));
+        }
+        window.filterPackets = filterPackets; window.copyTableCodes = copyTableCodes;
+
+        function renderMainTable(list) {
+            const sorted = list.sort((a,b) => b.total - a.total);
+            document.getElementById('main-table').innerHTML = sorted.map(c => `
+                <tr class="hover:bg-blue-50 transition border-b border-gray-100">
+                    <td class="px-6 py-3 font-semibold text-gray-700">${c.name} ${c.isTriagem ? '<span class="ml-2 px-2 py-0.5 bg-orange-100 text-orange-700 text-[9px] rounded font-bold uppercase">TRIAGEM</span>' : ''}</td>
+                    <td class="px-4 py-3 text-right font-bold text-gray-800">${c.total}</td>
+                    <td class="px-4 py-3 text-right text-emerald-600">${c.ent}</td>
+                    <td class="px-4 py-3 text-right text-red-500">${c.prob}</td>
+                    <td class="px-4 py-3 text-right text-blue-500">${c.open}</td>
+                    <td class="px-6 py-3 text-right font-bold ${parseFloat(c.sla) >= 80 ? 'text-emerald-600' : (parseFloat(c.sla) < 79 ? 'text-red-600' : 'text-yellow-600')}">${c.sla}%</td>
+                </tr>`).join('');
+        }
+    </script>
+</body>
+</html>
