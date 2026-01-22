@@ -1,166 +1,211 @@
-´<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SLA Manager V8.0 - Central de Cobrança</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>SLA Manager V11.0 - Gestão de Metas</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         .toggle-checkbox:checked { right: 0; border-color: #68D391; }
         .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
-        select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem; -webkit-appearance: none; appearance: none; }
-        /* Animação suave para o modal */
-        .fade-in { animation: fadeIn 0.2s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .scale-in { animation: scaleIn 0.2s ease-out; }
+        @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .clickable-card { cursor: pointer; transition: transform 0.2s; }
+        .clickable-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
     </style>
 </head>
-<body class="bg-slate-100 font-sans text-slate-800">
+<body class="bg-slate-50 font-sans text-slate-800">
 
-    <div id="modal-driver-select" class="fixed inset-0 bg-black/70 z-[60] hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden flex flex-col max-h-[80vh] fade-in">
-            <div class="bg-slate-800 text-white p-4 flex justify-between items-center">
-                <h3 class="font-bold"><i class="fas fa-user-clock mr-2"></i> Selecione para Cobrar</h3>
-                <button onclick="closeModal('modal-driver-select')" class="hover:bg-white/20 px-2 rounded"><i class="fas fa-times"></i></button>
+    <div id="modal-pending-view" class="fixed inset-0 bg-black/80 z-[80] hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden flex flex-col scale-in max-h-[85vh]">
+            <div class="bg-red-600 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold uppercase text-xs tracking-widest"><i class="fas fa-list-ul mr-2"></i> Auditoria de Pendências</h3>
+                <button onclick="closeModal('modal-pending-view')" class="hover:bg-white/20 px-2 rounded"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4 bg-slate-50 border-b">
-                <p class="text-xs text-gray-500">Exibindo motoristas com pendências na cidade selecionada.</p>
+            <div class="p-2 bg-gray-100 border-b flex justify-between items-center text-xs px-4">
+                <span id="pending-count-display" class="font-bold text-red-600">0 itens</span>
+                <button onclick="copyPendingList()" class="text-blue-600 hover:underline font-bold"><i class="fas fa-copy"></i> Copiar Códigos</button>
             </div>
-            <div id="driver-list-container" class="overflow-y-auto custom-scrollbar p-2 space-y-2">
-                </div>
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-0">
+                <table class="w-full text-xs text-left">
+                    <thead class="bg-gray-50 text-gray-500 font-bold sticky top-0 shadow-sm">
+                        <tr>
+                            <th class="px-4 py-3">Código</th>
+                            <th class="px-4 py-3">Cidade</th>
+                            <th class="px-4 py-3">Motorista</th>
+                            <th class="px-4 py-3">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pending-list-body" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+            <div class="p-3 border-t bg-gray-50 text-center">
+                <button onclick="closeModal('modal-pending-view')" class="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold rounded text-xs">Fechar</button>
+            </div>
         </div>
     </div>
 
     <div id="modal-message" class="fixed inset-0 bg-black/80 z-[70] hidden flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden flex flex-col fade-in">
-            <div class="bg-green-600 text-white p-4 flex justify-between items-center">
-                <h3 class="font-bold"><i class="fab fa-whatsapp mr-2"></i> Mensagem Pronta</h3>
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden flex flex-col scale-in">
+            <div class="bg-indigo-600 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold uppercase text-xs tracking-widest"><i class="fab fa-whatsapp mr-2"></i> Mensagem Pronta</h3>
                 <button onclick="closeModal('modal-message')" class="hover:bg-white/20 px-2 rounded"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-4 flex-1">
-                <textarea id="msg-area" class="w-full h-64 p-3 border rounded-lg text-xs font-mono bg-gray-50 focus:ring-2 focus:ring-green-500 outline-none resize-none" readonly></textarea>
+                <textarea id="msg-area" class="w-full h-80 p-4 border rounded-lg text-[11px] font-mono bg-slate-50 outline-none resize-none leading-relaxed shadow-inner" readonly></textarea>
             </div>
-            <div class="p-4 bg-gray-50 border-t flex justify-end gap-2">
-                <button onclick="closeModal('modal-message')" class="px-4 py-2 text-gray-500 text-xs font-bold hover:bg-gray-200 rounded">Cancelar</button>
-                <button onclick="copyToClipboard()" class="px-6 py-2 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded shadow flex items-center">
-                    <i class="fas fa-copy mr-2"></i> Copiar Texto
+            <div class="p-4 border-t bg-gray-50">
+                <button onclick="copyToClipboard()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg flex items-center justify-center transition-all transform active:scale-95">
+                    <i class="fas fa-copy mr-2"></i> COPIAR TEXTO
                 </button>
             </div>
         </div>
     </div>
 
-    <header class="bg-slate-900 text-white p-4 shadow-xl sticky top-0 z-50">
-        <div class="container mx-auto flex flex-col xl:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-4">
-                <div class="bg-indigo-600/20 p-2 rounded-lg border border-indigo-500/30">
-                    <i class="fas fa-tasks text-2xl text-indigo-400"></i>
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight uppercase">SLA Central V8</h1>
-                    <p class="text-gray-400 text-[10px]">Gestão de Entregas & Cobrança</p>
-                </div>
+    <div id="modal-driver-select" class="fixed inset-0 bg-black/70 z-[60] hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden flex flex-col max-h-[80vh]">
+            <div class="bg-slate-800 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold text-sm uppercase"><i class="fas fa-user-tag mr-2"></i> Selecionar Motorista</h3>
+                <button onclick="closeModal('modal-driver-select')" class="hover:bg-white/20 px-2 rounded"><i class="fas fa-times"></i></button>
             </div>
-            
-            <div class="flex flex-col md:flex-row gap-2 w-full xl:w-auto items-center">
-                <div class="flex flex-col w-full md:w-auto">
-                    <label class="text-[9px] text-gray-400 font-bold uppercase ml-1 mb-1">Data (M)</label>
-                    <input type="date" id="filterDate" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg p-2 focus:ring-blue-500 w-full md:w-36 font-bold h-[38px]">
-                </div>
+            <div id="driver-list-container" class="overflow-y-auto custom-scrollbar p-3 space-y-2 bg-slate-100"></div>
+        </div>
+    </div>
 
-                <div class="flex flex-col w-full md:w-auto">
-                    <label class="text-[9px] text-gray-400 font-bold uppercase ml-1 mb-1">Filtrar Cidade</label>
-                    <select id="filterCity" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg p-2 focus:ring-blue-500 w-full md:w-48 font-bold h-[38px] cursor-pointer">
-                        <option value="">Todas as Cidades</option>
-                    </select>
+    <header class="bg-slate-900 text-white p-4 shadow-xl sticky top-0 z-50">
+        <div class="container mx-auto">
+            <div class="flex justify-between items-center mb-3">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/10 p-2 rounded-lg">
+                        <i class="fas fa-bullseye text-xl text-purple-400"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold tracking-tight uppercase leading-tight">SLA Manager V11.0</h1>
+                        <p class="text-[10px] text-gray-400">Foco na Meta de 95%</p>
+                    </div>
                 </div>
-
-                <div class="flex items-center bg-slate-800 p-2 rounded-lg border border-slate-700 h-[38px] mt-4 md:mt-0">
+                
+                <div class="flex items-center bg-slate-800 px-3 py-1.5 rounded-full border border-slate-600">
                     <div class="relative inline-block w-8 mr-2 align-middle select-none">
                         <input type="checkbox" id="toggleQuiri" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 left-0" checked/>
                         <label for="toggleQuiri" class="toggle-label block overflow-hidden h-4 rounded-full bg-slate-600 cursor-pointer"></label>
                     </div>
-                    <label class="text-[10px] font-bold text-white cursor-pointer select-none">Região Quirinópolis</label>
+                    <label for="toggleQuiri" class="text-[10px] font-bold text-white cursor-pointer select-none uppercase">Região Quirinópolis</label>
+                </div>
+            </div>
+
+            <div class="flex flex-col lg:flex-row gap-3 items-center justify-between bg-slate-800/50 p-2 rounded-lg">
+                <div class="flex gap-2 w-full lg:w-auto">
+                    <div class="flex flex-col">
+                        <label class="text-[9px] text-gray-400 font-bold uppercase ml-1">Data (Col M)</label>
+                        <input type="date" id="filterDate" class="bg-slate-700 border border-slate-600 text-white text-xs rounded p-2 h-9 font-bold outline-none focus:border-blue-500 w-32">
+                    </div>
+                    <div class="flex flex-col flex-1 lg:w-48">
+                        <label class="text-[9px] text-gray-400 font-bold uppercase ml-1">Cidade</label>
+                        <select id="filterCity" class="bg-slate-700 border border-slate-600 text-white text-xs rounded p-2 h-9 font-bold w-full outline-none focus:border-blue-500 cursor-pointer">
+                            <option value="">Todas Cidades</option>
+                        </select>
+                    </div>
                 </div>
 
-                <div class="flex gap-2">
-                    <label class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg cursor-pointer text-xs font-bold transition shadow-lg flex items-center justify-center h-[38px] border border-blue-400 w-24">
-                        <i class="fas fa-database mr-2"></i> Base
-                        <input type="file" id="fileBase" accept=".xlsx, .xls, .csv" class="hidden"/>
+                <div class="flex gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
+                    <label class="flex items-center justify-center px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-lg cursor-pointer text-[10px] font-bold h-9 shadow transition min-w-[90px]" id="btn-1">
+                        1. Base <input type="file" id="fileBase" class="hidden"/>
                     </label>
-
-                    <label class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg cursor-pointer text-xs font-bold transition shadow-lg flex items-center justify-center h-[38px] border border-slate-500 w-24 relative" title="Obrigatório para Cobrança">
-                        <i class="fas fa-sync-alt mr-2"></i> Atualizar
-                        <input type="file" id="fileUpdate" accept=".xlsx, .xls, .csv" class="hidden"/>
+                    <label class="flex items-center justify-center px-4 bg-slate-600 hover:bg-slate-500 text-white rounded-lg cursor-pointer text-[10px] font-bold h-9 shadow transition min-w-[90px]" id="btn-2">
+                        2. Status <input type="file" id="fileUpdate" class="hidden"/>
+                    </label>
+                    <label class="flex items-center justify-center px-4 bg-slate-600 hover:bg-slate-500 text-white rounded-lg cursor-pointer text-[10px] font-bold h-9 shadow transition min-w-[90px]" id="btn-3">
+                        3. Nomes <input type="file" id="fileRecipients" class="hidden"/>
                     </label>
                 </div>
             </div>
         </div>
     </header>
 
-    <div class="container mx-auto p-4 space-y-6 pb-20">
+    <main class="container mx-auto p-4 space-y-5">
         
-        <div id="initial-msg" class="py-20 text-center text-gray-400">
-            <i class="fas fa-shipping-fast text-6xl mb-4 opacity-10"></i>
-            <h2 class="text-xl font-bold">Painel de Operações</h2>
-            <p class="text-sm">Carregue os arquivos para começar.</p>
+        <div id="audit-panel" class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 hidden flex flex-wrap justify-between items-center gap-2">
+             <div class="text-[10px] text-slate-500 font-bold uppercase flex gap-4">
+                 <span><i class="fas fa-file-excel mr-1 text-blue-500"></i> Base: <span id="count-base" class="text-slate-800">0</span></span>
+                 <span><i class="fas fa-truck mr-1 text-emerald-500"></i> Status: <span id="count-update" class="text-slate-800">0</span></span>
+                 <span><i class="fas fa-address-card mr-1 text-purple-500"></i> Nomes: <span id="count-client" class="text-slate-800">0</span></span>
+             </div>
+             <div id="match-status" class="text-[10px] font-bold px-3 py-1 rounded bg-slate-100 text-slate-500">
+                 Carregue os 3 arquivos.
+             </div>
         </div>
 
-        <div id="dashboard" class="hidden space-y-6">
-            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                <div class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-slate-600">
-                    <p class="text-[10px] text-gray-500 font-bold uppercase">Volume (Filtro)</p>
-                    <h3 class="text-3xl font-black text-slate-800 mt-1" id="kpi-total">0</h3>
+        <div id="dashboard" class="hidden space-y-5">
+            <div class="grid grid-cols-2 lg:grid-cols-6 gap-3">
+                <div class="bg-white p-3 rounded-lg shadow-sm border-b-4 border-slate-500 text-center">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Volume</p>
+                    <h3 class="text-2xl font-black text-slate-700 mt-1" id="kpi-total">0</h3>
                 </div>
-                <div class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-indigo-600">
-                    <p class="text-[10px] text-indigo-600 font-bold uppercase">SLA Real</p>
-                    <h3 class="text-3xl font-black text-indigo-600 mt-1" id="kpi-sla">0.0%</h3>
+                <div class="bg-white p-3 rounded-lg shadow-sm border-b-4 border-indigo-600 text-center">
+                    <p class="text-[9px] font-bold text-indigo-600 uppercase">SLA Real</p>
+                    <h3 class="text-2xl font-black text-indigo-800 mt-1" id="kpi-sla">0.0%</h3>
                 </div>
-                <div class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-emerald-500">
-                    <p class="text-[10px] text-emerald-600 font-bold uppercase">Entregues</p>
-                    <h3 class="text-3xl font-black text-emerald-600 mt-1" id="kpi-entregue">0</h3>
+                
+                <div class="bg-purple-50 p-3 rounded-lg shadow-sm border-b-4 border-purple-500 text-center relative overflow-hidden">
+                    <div class="absolute top-1 right-1 opacity-20 text-purple-700"><i class="fas fa-flag-checkered"></i></div>
+                    <p class="text-[9px] font-bold text-purple-600 uppercase">Faltam p/ 95%</p>
+                    <h3 class="text-2xl font-black text-purple-700 mt-1" id="kpi-gap">0</h3>
                 </div>
-                <div class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-blue-400">
-                    <p class="text-[10px] text-blue-500 font-bold uppercase">Em Rota</p>
-                    <h3 class="text-3xl font-black text-blue-500 mt-1" id="kpi-rota">0</h3>
+
+                <div class="bg-white p-3 rounded-lg shadow-sm border-b-4 border-emerald-500 text-center">
+                    <p class="text-[9px] font-bold text-emerald-600 uppercase">Entregues</p>
+                    <h3 class="text-2xl font-black text-emerald-700 mt-1" id="kpi-entregue">0</h3>
                 </div>
-                <div class="bg-white p-4 rounded-xl shadow-sm border-b-4 border-red-500 bg-red-50">
-                    <p class="text-[10px] text-red-600 font-bold uppercase">Pendentes</p>
-                    <h3 class="text-3xl font-black text-red-600 mt-1" id="kpi-base">0</h3>
+                
+                <div onclick="openPendingList()" class="bg-red-50 p-3 rounded-lg shadow-sm border-b-4 border-red-600 clickable-card group relative text-center">
+                    <p class="text-[9px] text-red-600 font-bold uppercase group-hover:underline">
+                        <i class="fas fa-exclamation-triangle mr-1"></i> Pendentes
+                    </p>
+                    <h3 class="text-2xl font-black text-red-700 mt-1" id="kpi-pendente">0</h3>
+                </div>
+                
+                <div class="bg-gray-50 p-3 rounded-lg shadow-sm border border-gray-200 text-center flex items-center justify-center">
+                    <div class="text-center">
+                        <p class="text-[9px] text-gray-400 font-bold uppercase">Meta</p>
+                        <p class="text-lg font-bold text-gray-300">95%</p>
+                    </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
-                <div class="bg-slate-800 p-4 text-white flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div class="flex flex-col">
-                        <h3 class="font-bold text-xs uppercase flex items-center">
-                            <i id="table-icon" class="fas fa-city mr-2 text-blue-400"></i> 
-                            <span id="table-title">Visão Geral</span>
-                        </h3>
-                        <span id="table-subtitle" class="text-[10px] text-slate-400 font-mono"></span>
+            <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+                <div class="bg-slate-800 p-3 text-white flex flex-col md:flex-row justify-between items-center gap-3">
+                    <div class="flex items-center">
+                        <i id="table-icon" class="fas fa-city mr-3 text-blue-400 text-lg"></i>
+                        <div>
+                            <h3 class="font-bold text-xs uppercase" id="table-title">Visão Geral</h3>
+                            <p class="text-[9px] text-slate-400" id="table-subtitle">Motoristas Unificados</p>
+                        </div>
                     </div>
-
-                    <button id="btn-master-billing" onclick="openDriverSelector()" disabled class="hidden md:flex items-center gap-2 bg-gray-600 text-gray-300 px-4 py-2 rounded shadow-lg text-xs font-bold transition cursor-not-allowed opacity-50">
-                        <i class="fab fa-whatsapp"></i>
-                        <span>Carregue Arq 2 p/ Cobrar</span>
-                    </button>
+                    
+                    <div class="flex gap-2">
+                        <button id="btn-group-billing" onclick="generateGroupMessage()" disabled class="flex items-center gap-2 bg-slate-700 text-slate-400 px-4 py-2 rounded shadow text-[10px] font-bold opacity-50 cursor-not-allowed transition-all border border-slate-600">
+                            <i class="fas fa-users"></i> COBRAR GRUPO
+                        </button>
+                        <button id="btn-master-billing" onclick="openDriverSelector()" disabled class="flex items-center gap-2 bg-slate-700 text-slate-400 px-4 py-2 rounded shadow text-[10px] font-bold opacity-50 cursor-not-allowed transition-all border border-slate-600">
+                            <i class="fab fa-whatsapp"></i> INDIVIDUAL
+                        </button>
+                    </div>
                 </div>
-                
                 <div class="overflow-x-auto">
-                    <table class="w-full text-xs text-left">
-                        <thead class="bg-slate-100 text-slate-600 font-bold uppercase border-b">
+                    <table class="w-full text-[11px] text-left">
+                        <thead class="bg-slate-50 text-slate-600 font-bold uppercase border-b">
                             <tr>
-                                <th class="px-6 py-4" id="col-name">Nome</th>
-                                <th class="px-4 py-4 text-center">Volume</th>
-                                <th class="px-4 py-4 text-center text-emerald-600">Entregue</th>
-                                <th class="px-4 py-4 text-center text-blue-500">Rota</th>
-                                <th class="px-4 py-4 text-center text-red-600">Pend/Parado</th>
-                                <th class="px-4 py-4 text-center text-orange-500">Falha</th>
-                                <th class="px-6 py-4 text-right">SLA %</th>
+                                <th class="px-4 py-3" id="col-name">Cidade</th>
+                                <th class="px-4 py-3 text-center">Vol.</th>
+                                <th class="px-4 py-3 text-center text-emerald-600">Entregues</th>
+                                <th class="px-4 py-3 text-center text-red-600 bg-red-50">Pendentes</th>
+                                <th class="px-4 py-3 text-center text-purple-600 font-bold bg-purple-50">Faltam p/ 95%</th>
+                                <th class="px-6 py-3 text-right">SLA %</th>
                             </tr>
                         </thead>
                         <tbody id="main-table" class="divide-y divide-slate-100"></tbody>
@@ -168,49 +213,59 @@
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <script>
-        let baseData = [];
-        let updateData = [];
-        let hasUpdateFile = false; // Controle de estado
+        let baseData = [], updateData = [], recipientData = [];
+        let hasBase = false, hasUpdate = false, hasRecipient = false;
+        let currentProcessedData = [];
+
         const BLOCK_LIST = ["QUIRINOPOLIS", "SAO SIMAO", "ITARUMA", "PARANAIGUARA", "CACHOEIRA ALTA", "APORE", "GOUVELANDIA", "CACU", "INACIOLANDIA", "ITAJA", "APARECIDA DO RIO DOCE", "CASTELANDIA", "LAGOA SANTA"];
 
-        // Setup Data Hoje
-        const today = new Date();
-        document.getElementById('filterDate').value = today.toISOString().split('T')[0];
+        document.getElementById('filterDate').value = new Date().toISOString().split('T')[0];
 
-        // Listeners
         document.getElementById('fileBase').addEventListener('change', (e) => handleFile(e, 'base'));
         document.getElementById('fileUpdate').addEventListener('change', (e) => handleFile(e, 'update'));
+        document.getElementById('fileRecipients').addEventListener('change', (e) => handleFile(e, 'recipient'));
         document.getElementById('filterDate').addEventListener('change', runDashboard);
         document.getElementById('toggleQuiri').addEventListener('change', runDashboard);
         document.getElementById('filterCity').addEventListener('change', renderTable);
+
+        function cleanID(val) {
+            if (!val) return "";
+            let s = String(val).trim();
+            if (s.toUpperCase().includes('E+')) s = Number(s).toLocaleString('fullwide', {useGrouping:false});
+            return s.replace(/^0+/, "");
+        }
+
+        function cleanDriverName(name) {
+            if (!name || name.trim() === "") return "SEM MOTORISTA";
+            let s = String(name).toUpperCase().trim();
+            if (s.includes('|')) s = s.split('|')[0].trim();
+            return s;
+        }
 
         function handleFile(e, type) {
             const file = e.target.files[0]; if(!file) return;
             const reader = new FileReader();
             reader.onload = function(evt) {
-                const workbook = XLSX.read(evt.target.result, { type: 'binary', cellDates: false });
+                const workbook = XLSX.read(evt.target.result, { type: 'binary' });
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                const json = XLSX.utils.sheet_to_json(sheet, { header: "A", defval: "" });
+                const json = XLSX.utils.sheet_to_json(sheet, { header: "A", defval: "", raw: false });
                 
-                if(type === 'base') {
-                    baseData = json;
-                    document.getElementById('fileBase').parentElement.classList.add('bg-blue-800');
-                    document.getElementById('fileBase').parentElement.innerHTML = `<i class="fas fa-check mr-2"></i> OK`;
-                } else {
-                    updateData = json;
-                    hasUpdateFile = true; // Habilita cobrança
-                    const btn = document.getElementById('fileUpdate').parentElement;
-                    btn.classList.remove('bg-slate-700');
-                    btn.classList.add('bg-emerald-600');
-                    btn.innerHTML = `<i class="fas fa-check-double mr-2"></i> OK <input type="file" id="fileUpdate" accept=".xlsx, .xls, .csv" class="hidden"/>`;
-                    document.getElementById('fileUpdate').addEventListener('change', (ev) => handleFile(ev, 'update'));
-                }
+                if(type === 'base') { baseData = json; hasBase = true; updateBtnStyle('btn-1'); }
+                else if(type === 'update') { updateData = json; hasUpdate = true; updateBtnStyle('btn-2'); }
+                else if(type === 'recipient') { recipientData = json; hasRecipient = true; updateBtnStyle('btn-3'); }
+                
                 runDashboard();
             };
             reader.readAsBinaryString(file);
+        }
+
+        function updateBtnStyle(id) {
+            const el = document.getElementById(id);
+            el.className = el.className.replace('bg-blue-600', 'bg-emerald-600').replace('bg-slate-600', 'bg-emerald-600');
+            if(!el.innerHTML.includes('check')) el.innerHTML += ` <i class="fas fa-check ml-1"></i>`;
         }
 
         function normalizeDate(input) {
@@ -219,232 +274,266 @@
                 const date = new Date((Number(input) - 25569) * 86400 * 1000);
                 return date.toISOString().split('T')[0];
             }
-            let str = String(input).trim().toUpperCase();
-            if (str.includes(' ')) str = str.split(' ')[0];
-            if (str.includes('/')) {
-                const parts = str.split('/');
-                if (parts.length === 3) return `${parts[2].length==2?"20"+parts[2]:parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+            let s = String(input).trim().toUpperCase();
+            if (s.includes(' ')) s = s.split(' ')[0];
+            if (s.includes('/')) {
+                const p = s.split('/');
+                return `${p[2].length==2?"20"+p[2]:p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
             }
-            if (str.includes('-')) return str.substring(0, 10);
-            return null;
+            return s.includes('-') ? s.substring(0, 10) : null;
         }
 
-        let currentProcessedData = []; 
-
         function runDashboard() {
-            if(baseData.length === 0) return;
-            
-            const targetDate = document.getElementById('filterDate').value;
+            if(!hasBase) return;
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('audit-panel').classList.remove('hidden');
+
+            const target = document.getElementById('filterDate').value;
             const includeQuiri = document.getElementById('toggleQuiri').checked;
             
-            document.getElementById('initial-msg').classList.add('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
+            const statusMap = new Map();
+            updateData.forEach(row => {
+                const id = cleanID(row.A);
+                if(id) statusMap.set(id, { driver: cleanDriverName(row.E), mark: String(row.K).toUpperCase() });
+            });
 
-            const updateMap = new Map();
-            if(updateData.length > 0) {
-                updateData.forEach(row => {
-                    const id = String(row.A || "").trim();
-                    if(id) {
-                        updateMap.set(id, { 
-                            driver: String(row.E || "").trim(), 
-                            mark: String(row.K || "").toUpperCase(),
-                            client: String(row.V || "CLIENTE NÃO IDENTIFICADO").trim()
-                        });
-                    }
-                });
-            }
+            const nameMap = new Map();
+            recipientData.forEach(row => {
+                const id = cleanID(row.A);
+                if(id) nameMap.set(id, String(row.V || "Nome não localizado").trim());
+            });
 
             currentProcessedData = [];
-            const citiesFound = new Set();
+            let matches = 0;
+            let updatedFromArq2 = 0;
+            const cities = new Set();
 
             baseData.forEach((row, idx) => {
-                if(idx === 0) return; 
-
-                const rowDate = normalizeDate(row.M);
-                if (rowDate === targetDate) {
-                    const cityRaw = String(row.AD || "").trim();
-                    const cityNorm = cityRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-
+                if(idx === 0) return;
+                const d = normalizeDate(row.M);
+                
+                if (d === target) {
+                    const id = cleanID(row.A);
+                    const city = String(row.AD || "").trim();
+                    const cityNorm = city.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
                     if (!includeQuiri && BLOCK_LIST.includes(cityNorm)) return;
-                    citiesFound.add(cityRaw);
+                    cities.add(city);
 
-                    const id = String(row.A || "").trim();
-                    let status = 'BASE';
-                    let clientName = "Sem Info"; 
+                    let status = 'PENDENTE';
+                    const baseHora = String(row.Q || "").trim();
+                    const up = statusMap.get(id);
 
-                    if (String(row.Q || "").trim() !== "") status = 'ENTREGUE';
-                    else if (String(row.S || "").trim() !== "") status = 'FALHA';
-                    else if (String(row.P || "").trim() !== "") status = 'ROTA';
-
-                    let driver = String(row.P || "SEM MOTORISTA").toUpperCase().trim();
-
-                    if (updateMap.has(id)) {
-                        const up = updateMap.get(id);
-                        clientName = up.client; 
-                        if (up.mark.includes("RECEBIMENTO") || up.mark.includes("ENTREGUE")) status = 'ENTREGUE';
-                        else if (up.mark.includes("NAO ENTREGUE")) status = 'FALHA';
-                        else if (up.driver !== "" && status === 'BASE') {
-                            status = 'ROTA';
-                            driver = up.driver.toUpperCase(); 
-                        }
+                    if (baseHora !== "" || (up && (up.mark.includes("RECEBIMENTO") || up.mark.includes("ENTREGUE")))) {
+                        status = 'OK';
                     }
-                    currentProcessedData.push({ id, city: cityRaw, driver, status, client: clientName });
+
+                    let driver = cleanDriverName(row.P);
+                    if (up && up.driver && up.driver !== "SEM MOTORISTA") {
+                        driver = up.driver;
+                        updatedFromArq2++;
+                    }
+                    
+                    const client = nameMap.get(id) || "NÃO LOCALIZADO";
+                    if(nameMap.has(id)) matches++;
+
+                    currentProcessedData.push({ id, city, driver: driver, status, client });
                 }
             });
 
+            document.getElementById('count-base').innerText = currentProcessedData.length;
+            document.getElementById('count-update').innerText = updatedFromArq2;
+            document.getElementById('count-client').innerText = matches;
+            
+            if(hasBase && hasUpdate && hasRecipient) {
+                document.getElementById('match-status').innerText = "Sincronizado. Cobrança Liberada.";
+                document.getElementById('match-status').className = "text-[10px] font-bold px-3 py-1 rounded bg-emerald-100 text-emerald-700";
+            }
+
             const sel = document.getElementById('filterCity');
-            const savedVal = sel.value;
-            sel.innerHTML = '<option value="">Todas as Cidades</option>';
-            Array.from(citiesFound).sort().forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
-            sel.value = citiesFound.has(savedVal) ? savedVal : "";
+            const val = sel.value;
+            sel.innerHTML = '<option value="">Todas Cidades</option>';
+            Array.from(cities).sort().forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
+            sel.value = cities.has(val) ? val : "";
 
             renderTable();
         }
 
         function renderTable() {
-            const filterCity = document.getElementById('filterCity').value;
-            
-            // SETUP UI
-            const isDriverMode = filterCity !== "";
-            
-            // ATUALIZAÇÃO DO BOTÃO MESTRE
+            const city = document.getElementById('filterCity').value;
+            const isDriver = city !== "";
             const btnMaster = document.getElementById('btn-master-billing');
-            if (isDriverMode && hasUpdateFile) {
-                btnMaster.disabled = false;
-                btnMaster.className = "hidden md:flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded shadow-lg text-xs font-bold transition transform active:scale-95";
-                btnMaster.innerHTML = `<i class="fab fa-whatsapp text-lg"></i> <span>Gerar Cobrança (${filterCity})</span>`;
+            const btnGroup = document.getElementById('btn-group-billing');
+
+            if(isDriver && hasBase && hasUpdate && hasRecipient) {
+                [btnMaster, btnGroup].forEach(b => {
+                    b.disabled = false;
+                    b.classList.remove('bg-slate-700', 'text-slate-400', 'opacity-50', 'cursor-not-allowed');
+                });
+                btnMaster.classList.add('bg-slate-700', 'text-white', 'hover:bg-slate-600');
+                btnGroup.classList.add('bg-indigo-600', 'text-white', 'hover:bg-indigo-500');
             } else {
-                btnMaster.disabled = true;
-                btnMaster.className = "hidden md:flex items-center gap-2 bg-gray-600 text-gray-400 px-4 py-2 rounded shadow-lg text-xs font-bold transition cursor-not-allowed opacity-50";
-                btnMaster.innerHTML = `<i class="fab fa-whatsapp text-lg"></i> <span>${hasUpdateFile ? 'Selecione uma Cidade' : 'Carregue Arq 2 p/ Cobrar'}</span>`;
+                [btnMaster, btnGroup].forEach(b => {
+                    b.disabled = true;
+                    b.className = "flex items-center gap-2 bg-slate-700 text-slate-400 px-4 py-2 rounded shadow text-[10px] font-bold opacity-50 cursor-not-allowed transition-all border border-slate-600";
+                });
             }
 
-            if (isDriverMode) {
-                document.getElementById('table-title').innerText = `Motoristas: ${filterCity}`;
-                document.getElementById('table-icon').className = "fas fa-user-tie mr-2 text-orange-400";
-                document.getElementById('col-name').innerText = "Motorista";
-            } else {
-                document.getElementById('table-title').innerText = "Visão Geral por Cidade";
-                document.getElementById('table-icon').className = "fas fa-city mr-2 text-blue-400";
-                document.getElementById('col-name').innerText = "Cidade";
-            }
+            document.getElementById('table-title').innerText = isDriver ? `Praça: ${city}` : "Visão Geral por Cidade";
+            document.getElementById('table-subtitle').innerText = isDriver ? "Desempenho por Motorista" : "Desempenho Geral";
+            document.getElementById('col-name').innerText = isDriver ? "Motorista" : "Cidade";
+            document.getElementById('table-icon').className = isDriver ? "fas fa-user-tie mr-3 text-orange-400 text-lg" : "fas fa-city mr-3 text-blue-400 text-lg";
 
-            let data = currentProcessedData;
-            if(isDriverMode) data = data.filter(d => d.city === filterCity);
-
+            const filtered = isDriver ? currentProcessedData.filter(d => d.city === city) : currentProcessedData;
             const stats = {};
-            let gStats = {vol:0, ent:0, rota:0, base:0, falha:0};
+            let kpi = { t:0, ok:0, pend:0 };
 
-            data.forEach(d => {
-                const key = isDriverMode ? d.driver : d.city;
-                if(!stats[key]) stats[key] = { name: key, vol:0, ent:0, rota:0, base:0, falha:0 };
-                stats[key].vol++; gStats.vol++;
-                if(d.status === 'ENTREGUE') { stats[key].ent++; gStats.ent++; }
-                else if(d.status === 'ROTA') { stats[key].rota++; gStats.rota++; }
-                else if(d.status === 'FALHA') { stats[key].falha++; gStats.falha++; }
-                else { stats[key].base++; gStats.base++; }
+            filtered.forEach(d => {
+                const key = isDriver ? d.driver : d.city;
+                if(!stats[key]) stats[key] = { n: key, t:0, ok:0, pend:0 };
+                stats[key].t++; kpi.t++;
+                if(d.status === 'OK') { stats[key].ok++; kpi.ok++; }
+                else { stats[key].pend++; kpi.pend++; }
             });
 
-            document.getElementById('kpi-total').innerText = gStats.vol;
-            document.getElementById('kpi-entregue').innerText = gStats.ent;
-            document.getElementById('kpi-rota').innerText = gStats.rota;
-            document.getElementById('kpi-base').innerText = gStats.base;
-            document.getElementById('kpi-sla').innerText = gStats.vol > 0 ? ((gStats.ent/gStats.vol)*100).toFixed(1)+"%" : "0.0%";
+            // CÁLCULO DE META 95% (GAP)
+            // Meta Global
+            const globalTarget = Math.ceil(kpi.t * 0.95);
+            const globalMissing = globalTarget - kpi.ok;
+            const globalGap = globalMissing > 0 ? globalMissing : 0;
 
-            const tbody = document.getElementById('main-table');
-            const sorted = Object.values(stats).sort((a,b) => b.vol - a.vol);
+            document.getElementById('kpi-total').innerText = kpi.t;
+            document.getElementById('kpi-entregue').innerText = kpi.ok;
+            document.getElementById('kpi-pendente').innerText = kpi.pend;
+            document.getElementById('kpi-gap').innerText = globalGap; // NOVO
+            document.getElementById('kpi-sla').innerText = kpi.t > 0 ? ((kpi.ok/kpi.t)*100).toFixed(1) + "%" : "0.0%";
 
-            tbody.innerHTML = sorted.map(row => {
-                const sla = row.vol > 0 ? ((row.ent/row.vol)*100).toFixed(0) : 0;
+            const sorted = Object.values(stats).sort((a,b) => b.t - a.t);
+            document.getElementById('main-table').innerHTML = sorted.map(row => {
+                // Cálculo de Meta por Linha
+                const target = Math.ceil(row.t * 0.95);
+                const missing = target - row.ok;
+                const gap = missing > 0 ? missing : 0;
+                const gapDisplay = gap === 0 ? '<span class="text-emerald-500 font-bold"><i class="fas fa-check"></i></span>' : gap;
+
                 return `
-                <tr class="hover:bg-slate-50 border-b">
-                    <td class="px-6 py-3 font-bold text-slate-700 truncate max-w-xs">${row.name}</td>
-                    <td class="px-4 py-3 text-center font-mono">${row.vol}</td>
-                    <td class="px-4 py-3 text-center text-emerald-600 font-bold">${row.ent}</td>
-                    <td class="px-4 py-3 text-center text-blue-500 font-semibold">${row.rota}</td>
-                    <td class="px-4 py-3 text-center text-red-600 font-bold">${row.base}</td>
-                    <td class="px-4 py-3 text-center text-orange-500">${row.falha}</td>
-                    <td class="px-6 py-3 text-right font-black text-slate-800">${sla}%</td>
+                <tr class="hover:bg-slate-50 border-b transition">
+                    <td class="px-4 py-3 font-bold text-slate-700 truncate max-w-xs">${row.n}</td>
+                    <td class="px-4 py-3 text-center font-mono">${row.t}</td>
+                    <td class="px-4 py-3 text-center text-emerald-600 font-bold">${row.ok}</td>
+                    <td class="px-4 py-3 text-center text-red-600 font-bold ${row.pend > 0 ? 'bg-red-50' : ''}">${row.pend}</td>
+                    <td class="px-4 py-3 text-center text-purple-700 font-bold bg-purple-50">${gapDisplay}</td>
+                    <td class="px-6 py-3 text-right font-black text-slate-800">${row.t > 0 ? ((row.ok/row.t)*100).toFixed(0) : 0}%</td>
                 </tr>`;
             }).join('');
         }
 
-        // --- LÓGICA DE COBRANÇA ---
+        // --- SISTEMA DE PENDÊNCIAS VISUAL ---
+        let pendingListCache = [];
+        function openPendingList() {
+            const city = document.getElementById('filterCity').value;
+            pendingListCache = currentProcessedData.filter(d => d.status !== 'OK');
+            
+            if (city !== "") {
+                pendingListCache = pendingListCache.filter(d => d.city === city);
+            }
+
+            document.getElementById('pending-count-display').innerText = `${pendingListCache.length} pendências`;
+            
+            const tbody = document.getElementById('pending-list-body');
+            tbody.innerHTML = pendingListCache.length ? pendingListCache.map(p => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-2 font-mono text-xs select-all font-bold text-slate-700">${p.id}</td>
+                    <td class="px-4 py-2 text-xs">${p.city}</td>
+                    <td class="px-4 py-2 text-xs font-bold ${p.driver==='SEM MOTORISTA'?'text-red-500':'text-blue-600'}">${p.driver}</td>
+                    <td class="px-4 py-2 text-[10px]"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold">PENDENTE</span></td>
+                </tr>
+            `).join('') : `<tr><td colspan="4" class="p-4 text-center text-gray-400">Nenhuma pendência encontrada!</td></tr>`;
+
+            document.getElementById('modal-pending-view').classList.remove('hidden');
+        }
+
+        function copyPendingList() {
+            if(!pendingListCache.length) return alert("Nada para copiar.");
+            const txt = pendingListCache.map(p => p.id).join('\n');
+            navigator.clipboard.writeText(txt).then(() => alert("Códigos copiados!"));
+        }
+
+        // --- MENSAGENS ---
+        function generateGroupMessage() {
+            const city = document.getElementById('filterCity').value;
+            const allPending = currentProcessedData.filter(d => d.city === city && d.status !== 'OK');
+            if(allPending.length === 0) return alert("Parabéns! Nenhuma pendência.");
+
+            const byDriver = {};
+            allPending.forEach(p => {
+                if(!byDriver[p.driver]) byDriver[p.driver] = [];
+                byDriver[p.driver].push(p);
+            });
+
+            const sortedDrivers = Object.keys(byDriver).sort();
+            let msg = `📢 *RELATÓRIO DE PENDÊNCIAS - ${city}* 📢\n`;
+            msg += `📅 Ref: *${document.getElementById('filterDate').value.split('-').reverse().join('/')}*\n`;
+            msg += `⚠️ Total Pendente: *${allPending.length}*\n`;
+            msg += `-----------------------------------\n\n`;
+
+            sortedDrivers.forEach(driver => {
+                const list = byDriver[driver];
+                msg += `👤 *MOTORISTA: ${driver}* (${list.length})\n`;
+                list.forEach(p => {
+                    msg += `📦 ${p.id} - ${p.client}\n`;
+                });
+                msg += `-----------------------------------\n`;
+            });
+            msg += `\n_Favor realizar as baixas urgentemente!_`;
+            document.getElementById('msg-area').value = msg;
+            document.getElementById('modal-message').classList.remove('hidden');
+        }
 
         function openDriverSelector() {
-            const cityName = document.getElementById('filterCity').value;
+            const city = document.getElementById('filterCity').value;
             const container = document.getElementById('driver-list-container');
             container.innerHTML = '';
 
-            // Agrupar motoristas com pendências
-            const pendingByDriver = {};
-            currentProcessedData.filter(d => d.city === cityName && d.status !== 'ENTREGUE').forEach(d => {
-                if(!pendingByDriver[d.driver]) pendingByDriver[d.driver] = 0;
-                pendingByDriver[d.driver]++;
+            const pendingDrivers = {};
+            currentProcessedData.filter(d => d.city === city && d.status !== 'OK').forEach(d => {
+                if(!pendingDrivers[d.driver]) pendingDrivers[d.driver] = 0;
+                pendingDrivers[d.driver]++;
             });
 
-            const drivers = Object.entries(pendingByDriver).sort((a,b) => b[1] - a[1]);
-
-            if(drivers.length === 0) {
-                container.innerHTML = '<div class="p-4 text-center text-gray-400">Nenhum motorista com pendência nesta cidade!</div>';
-            } else {
-                drivers.forEach(([driver, count]) => {
-                    const btn = document.createElement('button');
-                    btn.className = "w-full text-left bg-white border border-gray-200 hover:bg-green-50 hover:border-green-300 p-3 rounded shadow-sm flex justify-between items-center transition";
-                    btn.onclick = () => generateMessage(driver);
-                    btn.innerHTML = `
-                        <span class="font-bold text-sm text-gray-700">${driver}</span>
-                        <span class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs font-bold">${count} pendentes</span>
-                    `;
-                    container.appendChild(btn);
-                });
-            }
-
+            Object.entries(pendingDrivers).sort((a,b) => b[1] - a[1]).forEach(([name, count]) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left bg-white border p-3 rounded shadow-sm flex justify-between items-center hover:bg-slate-100 transition mb-2";
+                btn.onclick = () => generateIndividualMessage(name);
+                btn.innerHTML = `<span class="font-bold text-slate-700 text-xs">${name}</span> <span class="bg-red-100 text-red-600 px-2 py-1 rounded text-[10px] font-bold">${count}</span>`;
+                container.appendChild(btn);
+            });
             document.getElementById('modal-driver-select').classList.remove('hidden');
         }
 
-        function generateMessage(driverName) {
-            const cityName = document.getElementById('filterCity').value;
-            const pending = currentProcessedData.filter(d => d.city === cityName && d.driver === driverName && d.status !== 'ENTREGUE');
-            
-            let msg = `🚨 *RELATÓRIO DE PENDÊNCIAS* 🚨\n`;
-            msg += `👤 Motorista: *${driverName}*\n`;
-            msg += `📍 Cidade: *${cityName}*\n`;
-            msg += `📅 Data: *${document.getElementById('filterDate').value.split('-').reverse().join('/')}*\n\n`;
-            msg += `*Favor verificar os pacotes abaixo:*\n\n`;
-
+        function generateIndividualMessage(driver) {
+            const city = document.getElementById('filterCity').value;
+            const pending = currentProcessedData.filter(d => d.city === city && d.driver === driver && d.status !== 'OK');
+            let msg = `🚨 *COBRANÇA DE PENDÊNCIAS* 🚨\n`;
+            msg += `👤 *${driver}*\n`;
+            msg += `📍 *${city}* | 📅 ${document.getElementById('filterDate').value.split('-').reverse().join('/')}\n\n`;
+            msg += `*Pendências:*\n`;
             pending.forEach(p => {
-                let icon = p.status === 'ROTA' ? '🚚' : (p.status === 'FALHA' ? '⚠️' : '🏭');
-                msg += `${icon} *${p.id}* - ${p.client}\n`;
+                msg += `📦 ${p.id}\n   👤 ${p.client}\n\n`;
             });
-
-            msg += `\n🔴 *Total Pendente: ${pending.length}*`;
-
+            msg += `🔴 Total: ${pending.length}`;
             document.getElementById('msg-area').value = msg;
             closeModal('modal-driver-select');
             document.getElementById('modal-message').classList.remove('hidden');
         }
 
         function copyToClipboard() {
-            const textArea = document.getElementById('msg-area');
-            textArea.select();
-            navigator.clipboard.writeText(textArea.value).then(() => {
-                const btn = document.querySelector('#modal-message button i.fa-copy').parentElement;
-                const originalText = btn.innerHTML;
-                btn.innerHTML = `<i class="fas fa-check mr-2"></i> Copiado!`;
-                btn.classList.replace('bg-green-600', 'bg-slate-700');
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                    btn.classList.replace('bg-slate-700', 'bg-green-600');
-                    closeModal('modal-message');
-                }, 1000);
-            });
+            const ta = document.getElementById('msg-area');
+            ta.select();
+            navigator.clipboard.writeText(ta.value).then(() => { closeModal('modal-message'); alert("Copiado!"); });
         }
 
-        function closeModal(id) {
-            document.getElementById(id).classList.add('hidden');
-        }
-        window.closeModal = closeModal; window.openDriverSelector = openDriverSelector; window.generateMessage = generateMessage; window.copyToClipboard = copyToClipboard;
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        window.closeModal = closeModal; window.openDriverSelector = openDriverSelector; window.generateGroupMessage = generateGroupMessage; window.copyToClipboard = copyToClipboard; window.openPendingList = openPendingList; window.copyPendingList = copyPendingList;
     </script>
 </body>
 </html>
