@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SLA Manager V11.0 - Gestão de Metas</title>
+    <title>SLA Manager V12.0 - Controle de Devoluções</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -23,7 +23,7 @@
     <div id="modal-pending-view" class="fixed inset-0 bg-black/80 z-[80] hidden flex items-center justify-center backdrop-blur-sm">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden flex flex-col scale-in max-h-[85vh]">
             <div class="bg-red-600 text-white p-4 flex justify-between items-center">
-                <h3 class="font-bold uppercase text-xs tracking-widest"><i class="fas fa-list-ul mr-2"></i> Auditoria de Pendências</h3>
+                <h3 class="font-bold uppercase text-xs tracking-widest"><i class="fas fa-list-ul mr-2"></i> Auditoria de Pendências Reais</h3>
                 <button onclick="closeModal('modal-pending-view')" class="hover:bg-white/20 px-2 rounded"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-2 bg-gray-100 border-b flex justify-between items-center text-xs px-4">
@@ -72,6 +72,9 @@
                 <h3 class="font-bold text-sm uppercase"><i class="fas fa-user-tag mr-2"></i> Selecionar Motorista</h3>
                 <button onclick="closeModal('modal-driver-select')" class="hover:bg-white/20 px-2 rounded"><i class="fas fa-times"></i></button>
             </div>
+            <div class="p-2 bg-yellow-50 border-b text-[10px] text-yellow-700 text-center">
+                *Pacotes no Input 4 (Devolvidos) foram removidos da cobrança.
+            </div>
             <div id="driver-list-container" class="overflow-y-auto custom-scrollbar p-3 space-y-2 bg-slate-100"></div>
         </div>
     </div>
@@ -81,11 +84,11 @@
             <div class="flex justify-between items-center mb-3">
                 <div class="flex items-center gap-3">
                     <div class="bg-white/10 p-2 rounded-lg">
-                        <i class="fas fa-bullseye text-xl text-purple-400"></i>
+                        <i class="fas fa-undo-alt text-xl text-orange-400"></i>
                     </div>
                     <div>
-                        <h1 class="text-lg font-bold tracking-tight uppercase leading-tight">SLA Manager V11.0</h1>
-                        <p class="text-[10px] text-gray-400">Foco na Meta de 95%</p>
+                        <h1 class="text-lg font-bold tracking-tight uppercase leading-tight">SLA Manager V12.0</h1>
+                        <p class="text-[10px] text-gray-400">Filtro de Devoluções Ativo</p>
                     </div>
                 </div>
                 
@@ -113,14 +116,17 @@
                 </div>
 
                 <div class="flex gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
-                    <label class="flex items-center justify-center px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-lg cursor-pointer text-[10px] font-bold h-9 shadow transition min-w-[90px]" id="btn-1">
+                    <label class="flex items-center justify-center px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-lg cursor-pointer text-[10px] font-bold h-9 shadow transition min-w-[80px]" id="btn-1">
                         1. Base <input type="file" id="fileBase" class="hidden"/>
                     </label>
-                    <label class="flex items-center justify-center px-4 bg-slate-600 hover:bg-slate-500 text-white rounded-lg cursor-pointer text-[10px] font-bold h-9 shadow transition min-w-[90px]" id="btn-2">
+                    <label class="flex items-center justify-center px-4 bg-slate-600 hover:bg-slate-500 text-white rounded-lg cursor-pointer text-[10px] font-bold h-9 shadow transition min-w-[80px]" id="btn-2">
                         2. Status <input type="file" id="fileUpdate" class="hidden"/>
                     </label>
-                    <label class="flex items-center justify-center px-4 bg-slate-600 hover:bg-slate-500 text-white rounded-lg cursor-pointer text-[10px] font-bold h-9 shadow transition min-w-[90px]" id="btn-3">
+                    <label class="flex items-center justify-center px-4 bg-slate-600 hover:bg-slate-500 text-white rounded-lg cursor-pointer text-[10px] font-bold h-9 shadow transition min-w-[80px]" id="btn-3">
                         3. Nomes <input type="file" id="fileRecipients" class="hidden"/>
+                    </label>
+                    <label class="flex items-center justify-center px-4 bg-slate-600 hover:bg-orange-500 text-white rounded-lg cursor-pointer text-[10px] font-bold h-9 shadow transition min-w-[90px] border-l-2 border-slate-500" id="btn-4">
+                        4. Devolvidos <input type="file" id="fileReturns" class="hidden"/>
                     </label>
                 </div>
             </div>
@@ -133,47 +139,44 @@
              <div class="text-[10px] text-slate-500 font-bold uppercase flex gap-4">
                  <span><i class="fas fa-file-excel mr-1 text-blue-500"></i> Base: <span id="count-base" class="text-slate-800">0</span></span>
                  <span><i class="fas fa-truck mr-1 text-emerald-500"></i> Status: <span id="count-update" class="text-slate-800">0</span></span>
-                 <span><i class="fas fa-address-card mr-1 text-purple-500"></i> Nomes: <span id="count-client" class="text-slate-800">0</span></span>
+                 <span><i class="fas fa-undo mr-1 text-orange-500"></i> Devolvidos: <span id="count-returns" class="text-slate-800">0</span></span>
              </div>
              <div id="match-status" class="text-[10px] font-bold px-3 py-1 rounded bg-slate-100 text-slate-500">
-                 Carregue os 3 arquivos.
+                 Carregue os arquivos.
              </div>
         </div>
 
         <div id="dashboard" class="hidden space-y-5">
-            <div class="grid grid-cols-2 lg:grid-cols-6 gap-3">
-                <div class="bg-white p-3 rounded-lg shadow-sm border-b-4 border-slate-500 text-center">
-                    <p class="text-[9px] font-bold text-slate-400 uppercase">Volume</p>
-                    <h3 class="text-2xl font-black text-slate-700 mt-1" id="kpi-total">0</h3>
+            <div class="grid grid-cols-2 lg:grid-cols-7 gap-2">
+                <div class="bg-white p-2 rounded-lg shadow-sm border-b-4 border-slate-500 text-center">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Total</p>
+                    <h3 class="text-xl font-black text-slate-700 mt-1" id="kpi-total">0</h3>
                 </div>
-                <div class="bg-white p-3 rounded-lg shadow-sm border-b-4 border-indigo-600 text-center">
-                    <p class="text-[9px] font-bold text-indigo-600 uppercase">SLA Real</p>
-                    <h3 class="text-2xl font-black text-indigo-800 mt-1" id="kpi-sla">0.0%</h3>
+                <div class="bg-white p-2 rounded-lg shadow-sm border-b-4 border-indigo-600 text-center">
+                    <p class="text-[9px] font-bold text-indigo-600 uppercase">SLA</p>
+                    <h3 class="text-xl font-black text-indigo-800 mt-1" id="kpi-sla">0.0%</h3>
                 </div>
                 
-                <div class="bg-purple-50 p-3 rounded-lg shadow-sm border-b-4 border-purple-500 text-center relative overflow-hidden">
-                    <div class="absolute top-1 right-1 opacity-20 text-purple-700"><i class="fas fa-flag-checkered"></i></div>
-                    <p class="text-[9px] font-bold text-purple-600 uppercase">Faltam p/ 95%</p>
-                    <h3 class="text-2xl font-black text-purple-700 mt-1" id="kpi-gap">0</h3>
+                <div class="bg-purple-50 p-2 rounded-lg shadow-sm border-b-4 border-purple-500 text-center">
+                    <p class="text-[9px] font-bold text-purple-600 uppercase">Gap 95%</p>
+                    <h3 class="text-xl font-black text-purple-700 mt-1" id="kpi-gap">0</h3>
                 </div>
 
-                <div class="bg-white p-3 rounded-lg shadow-sm border-b-4 border-emerald-500 text-center">
-                    <p class="text-[9px] font-bold text-emerald-600 uppercase">Entregues</p>
-                    <h3 class="text-2xl font-black text-emerald-700 mt-1" id="kpi-entregue">0</h3>
+                <div class="bg-white p-2 rounded-lg shadow-sm border-b-4 border-emerald-500 text-center">
+                    <p class="text-[9px] font-bold text-emerald-600 uppercase">Entregue</p>
+                    <h3 class="text-xl font-black text-emerald-700 mt-1" id="kpi-entregue">0</h3>
                 </div>
                 
-                <div onclick="openPendingList()" class="bg-red-50 p-3 rounded-lg shadow-sm border-b-4 border-red-600 clickable-card group relative text-center">
+                <div class="bg-white p-2 rounded-lg shadow-sm border-b-4 border-orange-400 text-center">
+                    <p class="text-[9px] font-bold text-orange-500 uppercase">Devolvido</p>
+                    <h3 class="text-xl font-black text-orange-600 mt-1" id="kpi-devolvido">0</h3>
+                </div>
+
+                <div onclick="openPendingList()" class="bg-red-50 p-2 rounded-lg shadow-sm border-b-4 border-red-600 clickable-card group relative text-center lg:col-span-2">
                     <p class="text-[9px] text-red-600 font-bold uppercase group-hover:underline">
-                        <i class="fas fa-exclamation-triangle mr-1"></i> Pendentes
+                        <i class="fas fa-exclamation-triangle mr-1"></i> Pendentes (Cobrar)
                     </p>
                     <h3 class="text-2xl font-black text-red-700 mt-1" id="kpi-pendente">0</h3>
-                </div>
-                
-                <div class="bg-gray-50 p-3 rounded-lg shadow-sm border border-gray-200 text-center flex items-center justify-center">
-                    <div class="text-center">
-                        <p class="text-[9px] text-gray-400 font-bold uppercase">Meta</p>
-                        <p class="text-lg font-bold text-gray-300">95%</p>
-                    </div>
                 </div>
             </div>
 
@@ -183,7 +186,7 @@
                         <i id="table-icon" class="fas fa-city mr-3 text-blue-400 text-lg"></i>
                         <div>
                             <h3 class="font-bold text-xs uppercase" id="table-title">Visão Geral</h3>
-                            <p class="text-[9px] text-slate-400" id="table-subtitle">Motoristas Unificados</p>
+                            <p class="text-[9px] text-slate-400" id="table-subtitle">Devoluções não contam como pendência</p>
                         </div>
                     </div>
                     
@@ -202,9 +205,10 @@
                             <tr>
                                 <th class="px-4 py-3" id="col-name">Cidade</th>
                                 <th class="px-4 py-3 text-center">Vol.</th>
-                                <th class="px-4 py-3 text-center text-emerald-600">Entregues</th>
+                                <th class="px-4 py-3 text-center text-emerald-600">OK</th>
+                                <th class="px-4 py-3 text-center text-orange-500">Devolv.</th>
                                 <th class="px-4 py-3 text-center text-red-600 bg-red-50">Pendentes</th>
-                                <th class="px-4 py-3 text-center text-purple-600 font-bold bg-purple-50">Faltam p/ 95%</th>
+                                <th class="px-4 py-3 text-center text-purple-600 font-bold bg-purple-50">Faltam 95%</th>
                                 <th class="px-6 py-3 text-right">SLA %</th>
                             </tr>
                         </thead>
@@ -216,8 +220,8 @@
     </main>
 
     <script>
-        let baseData = [], updateData = [], recipientData = [];
-        let hasBase = false, hasUpdate = false, hasRecipient = false;
+        let baseData = [], updateData = [], recipientData = [], returnsData = [];
+        let hasBase = false, hasUpdate = false, hasRecipient = false, hasReturns = false;
         let currentProcessedData = [];
 
         const BLOCK_LIST = ["QUIRINOPOLIS", "SAO SIMAO", "ITARUMA", "PARANAIGUARA", "CACHOEIRA ALTA", "APORE", "GOUVELANDIA", "CACU", "INACIOLANDIA", "ITAJA", "APARECIDA DO RIO DOCE", "CASTELANDIA", "LAGOA SANTA"];
@@ -227,6 +231,8 @@
         document.getElementById('fileBase').addEventListener('change', (e) => handleFile(e, 'base'));
         document.getElementById('fileUpdate').addEventListener('change', (e) => handleFile(e, 'update'));
         document.getElementById('fileRecipients').addEventListener('change', (e) => handleFile(e, 'recipient'));
+        document.getElementById('fileReturns').addEventListener('change', (e) => handleFile(e, 'returns'));
+        
         document.getElementById('filterDate').addEventListener('change', runDashboard);
         document.getElementById('toggleQuiri').addEventListener('change', runDashboard);
         document.getElementById('filterCity').addEventListener('change', renderTable);
@@ -239,10 +245,10 @@
         }
 
         function cleanDriverName(name) {
-            if (!name || name.trim() === "") return "SEM MOTORISTA";
+            if (!name || name.trim() === "") return null;
             let s = String(name).toUpperCase().trim();
             if (s.includes('|')) s = s.split('|')[0].trim();
-            return s;
+            return s === "" ? null : s;
         }
 
         function handleFile(e, type) {
@@ -253,18 +259,19 @@
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
                 const json = XLSX.utils.sheet_to_json(sheet, { header: "A", defval: "", raw: false });
                 
-                if(type === 'base') { baseData = json; hasBase = true; updateBtnStyle('btn-1'); }
-                else if(type === 'update') { updateData = json; hasUpdate = true; updateBtnStyle('btn-2'); }
-                else if(type === 'recipient') { recipientData = json; hasRecipient = true; updateBtnStyle('btn-3'); }
+                if(type === 'base') { baseData = json; hasBase = true; updateBtnStyle('btn-1', 'bg-blue-600', 'bg-emerald-600'); }
+                else if(type === 'update') { updateData = json; hasUpdate = true; updateBtnStyle('btn-2', 'bg-slate-600', 'bg-emerald-600'); }
+                else if(type === 'recipient') { recipientData = json; hasRecipient = true; updateBtnStyle('btn-3', 'bg-slate-600', 'bg-emerald-600'); }
+                else if(type === 'returns') { returnsData = json; hasReturns = true; updateBtnStyle('btn-4', 'bg-slate-600', 'bg-orange-500'); }
                 
                 runDashboard();
             };
             reader.readAsBinaryString(file);
         }
 
-        function updateBtnStyle(id) {
+        function updateBtnStyle(id, oldBg, newBg) {
             const el = document.getElementById(id);
-            el.className = el.className.replace('bg-blue-600', 'bg-emerald-600').replace('bg-slate-600', 'bg-emerald-600');
+            el.className = el.className.replace(oldBg, newBg);
             if(!el.innerHTML.includes('check')) el.innerHTML += ` <i class="fas fa-check ml-1"></i>`;
         }
 
@@ -291,21 +298,32 @@
             const target = document.getElementById('filterDate').value;
             const includeQuiri = document.getElementById('toggleQuiri').checked;
             
+            // Mapas
             const statusMap = new Map();
             updateData.forEach(row => {
                 const id = cleanID(row.A);
                 if(id) statusMap.set(id, { driver: cleanDriverName(row.E), mark: String(row.K).toUpperCase() });
             });
 
-            const nameMap = new Map();
+            const recipientMap = new Map();
             recipientData.forEach(row => {
                 const id = cleanID(row.A);
-                if(id) nameMap.set(id, String(row.V || "Nome não localizado").trim());
+                if(id) recipientMap.set(id, { 
+                    client: String(row.V || "Nome não localizado").trim(),
+                    driver: cleanDriverName(row.E) 
+                });
             });
+
+            const returnsSet = new Set();
+            if(hasReturns) {
+                returnsData.forEach(row => {
+                    const id = cleanID(row.A);
+                    if(id) returnsSet.add(id);
+                });
+            }
 
             currentProcessedData = [];
             let matches = 0;
-            let updatedFromArq2 = 0;
             const cities = new Set();
 
             baseData.forEach((row, idx) => {
@@ -323,29 +341,36 @@
                     const baseHora = String(row.Q || "").trim();
                     const up = statusMap.get(id);
 
+                    // 1. Verificação de Entrega
                     if (baseHora !== "" || (up && (up.mark.includes("RECEBIMENTO") || up.mark.includes("ENTREGUE")))) {
                         status = 'OK';
                     }
-
-                    let driver = cleanDriverName(row.P);
-                    if (up && up.driver && up.driver !== "SEM MOTORISTA") {
-                        driver = up.driver;
-                        updatedFromArq2++;
+                    // 2. Verificação de Devolução (Prioridade sobre pendência)
+                    else if (returnsSet.has(id)) {
+                        status = 'DEVOLVIDO';
                     }
-                    
-                    const client = nameMap.get(id) || "NÃO LOCALIZADO";
-                    if(nameMap.has(id)) matches++;
 
-                    currentProcessedData.push({ id, city, driver: driver, status, client });
+                    // 3. Definição do Motorista (3 > 2 > 1)
+                    let driverBase = cleanDriverName(row.P);
+                    let driverUp = up ? up.driver : null;
+                    let driverRec = recipientMap.get(id) ? recipientMap.get(id).driver : null;
+
+                    let finalDriver = driverRec || driverUp || driverBase || "SEM MOTORISTA";
+
+                    const clientInfo = recipientMap.get(id);
+                    const clientName = clientInfo ? clientInfo.client : "NÃO LOCALIZADO";
+                    if(recipientMap.has(id)) matches++;
+
+                    currentProcessedData.push({ id, city, driver: finalDriver, status, client: clientName });
                 }
             });
 
             document.getElementById('count-base').innerText = currentProcessedData.length;
-            document.getElementById('count-update').innerText = updatedFromArq2;
-            document.getElementById('count-client').innerText = matches;
+            document.getElementById('count-update').innerText = hasUpdate ? "OK" : "0";
+            document.getElementById('count-returns').innerText = returnsSet.size;
             
             if(hasBase && hasUpdate && hasRecipient) {
-                document.getElementById('match-status').innerText = "Sincronizado. Cobrança Liberada.";
+                document.getElementById('match-status').innerText = "Dados Sincronizados.";
                 document.getElementById('match-status').className = "text-[10px] font-bold px-3 py-1 rounded bg-emerald-100 text-emerald-700";
             }
 
@@ -379,47 +404,45 @@
             }
 
             document.getElementById('table-title').innerText = isDriver ? `Praça: ${city}` : "Visão Geral por Cidade";
-            document.getElementById('table-subtitle').innerText = isDriver ? "Desempenho por Motorista" : "Desempenho Geral";
             document.getElementById('col-name').innerText = isDriver ? "Motorista" : "Cidade";
             document.getElementById('table-icon').className = isDriver ? "fas fa-user-tie mr-3 text-orange-400 text-lg" : "fas fa-city mr-3 text-blue-400 text-lg";
 
             const filtered = isDriver ? currentProcessedData.filter(d => d.city === city) : currentProcessedData;
             const stats = {};
-            let kpi = { t:0, ok:0, pend:0 };
+            let kpi = { t:0, ok:0, pend:0, dev:0 };
 
             filtered.forEach(d => {
                 const key = isDriver ? d.driver : d.city;
-                if(!stats[key]) stats[key] = { n: key, t:0, ok:0, pend:0 };
+                if(!stats[key]) stats[key] = { n: key, t:0, ok:0, pend:0, dev:0 };
                 stats[key].t++; kpi.t++;
                 if(d.status === 'OK') { stats[key].ok++; kpi.ok++; }
+                else if(d.status === 'DEVOLVIDO') { stats[key].dev++; kpi.dev++; }
                 else { stats[key].pend++; kpi.pend++; }
             });
 
-            // CÁLCULO DE META 95% (GAP)
-            // Meta Global
+            // Metas
             const globalTarget = Math.ceil(kpi.t * 0.95);
             const globalMissing = globalTarget - kpi.ok;
-            const globalGap = globalMissing > 0 ? globalMissing : 0;
-
+            
             document.getElementById('kpi-total').innerText = kpi.t;
             document.getElementById('kpi-entregue').innerText = kpi.ok;
             document.getElementById('kpi-pendente').innerText = kpi.pend;
-            document.getElementById('kpi-gap').innerText = globalGap; // NOVO
+            document.getElementById('kpi-devolvido').innerText = kpi.dev; // Novo KPI
+            document.getElementById('kpi-gap').innerText = globalMissing > 0 ? globalMissing : 0;
             document.getElementById('kpi-sla').innerText = kpi.t > 0 ? ((kpi.ok/kpi.t)*100).toFixed(1) + "%" : "0.0%";
 
             const sorted = Object.values(stats).sort((a,b) => b.t - a.t);
             document.getElementById('main-table').innerHTML = sorted.map(row => {
-                // Cálculo de Meta por Linha
                 const target = Math.ceil(row.t * 0.95);
                 const missing = target - row.ok;
-                const gap = missing > 0 ? missing : 0;
-                const gapDisplay = gap === 0 ? '<span class="text-emerald-500 font-bold"><i class="fas fa-check"></i></span>' : gap;
+                const gapDisplay = missing > 0 ? missing : '<span class="text-emerald-500 font-bold"><i class="fas fa-check"></i></span>';
 
                 return `
                 <tr class="hover:bg-slate-50 border-b transition">
                     <td class="px-4 py-3 font-bold text-slate-700 truncate max-w-xs">${row.n}</td>
                     <td class="px-4 py-3 text-center font-mono">${row.t}</td>
                     <td class="px-4 py-3 text-center text-emerald-600 font-bold">${row.ok}</td>
+                    <td class="px-4 py-3 text-center text-orange-500">${row.dev}</td>
                     <td class="px-4 py-3 text-center text-red-600 font-bold ${row.pend > 0 ? 'bg-red-50' : ''}">${row.pend}</td>
                     <td class="px-4 py-3 text-center text-purple-700 font-bold bg-purple-50">${gapDisplay}</td>
                     <td class="px-6 py-3 text-right font-black text-slate-800">${row.t > 0 ? ((row.ok/row.t)*100).toFixed(0) : 0}%</td>
@@ -427,18 +450,15 @@
             }).join('');
         }
 
-        // --- SISTEMA DE PENDÊNCIAS VISUAL ---
+        // --- SISTEMAS DE COBRANÇA (FILTRANDO DEVOLVIDOS) ---
         let pendingListCache = [];
         function openPendingList() {
             const city = document.getElementById('filterCity').value;
-            pendingListCache = currentProcessedData.filter(d => d.status !== 'OK');
+            // Filtra o que não é OK e nem Devolvido
+            pendingListCache = currentProcessedData.filter(d => d.status !== 'OK' && d.status !== 'DEVOLVIDO');
+            if (city !== "") pendingListCache = pendingListCache.filter(d => d.city === city);
             
-            if (city !== "") {
-                pendingListCache = pendingListCache.filter(d => d.city === city);
-            }
-
-            document.getElementById('pending-count-display').innerText = `${pendingListCache.length} pendências`;
-            
+            document.getElementById('pending-count-display').innerText = `${pendingListCache.length} pendências reais`;
             const tbody = document.getElementById('pending-list-body');
             tbody.innerHTML = pendingListCache.length ? pendingListCache.map(p => `
                 <tr class="hover:bg-slate-50">
@@ -446,42 +466,31 @@
                     <td class="px-4 py-2 text-xs">${p.city}</td>
                     <td class="px-4 py-2 text-xs font-bold ${p.driver==='SEM MOTORISTA'?'text-red-500':'text-blue-600'}">${p.driver}</td>
                     <td class="px-4 py-2 text-[10px]"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold">PENDENTE</span></td>
-                </tr>
-            `).join('') : `<tr><td colspan="4" class="p-4 text-center text-gray-400">Nenhuma pendência encontrada!</td></tr>`;
-
+                </tr>`).join('') : `<tr><td colspan="4" class="p-4 text-center text-gray-400">Nenhuma pendência encontrada!</td></tr>`;
             document.getElementById('modal-pending-view').classList.remove('hidden');
         }
 
         function copyPendingList() {
             if(!pendingListCache.length) return alert("Nada para copiar.");
-            const txt = pendingListCache.map(p => p.id).join('\n');
-            navigator.clipboard.writeText(txt).then(() => alert("Códigos copiados!"));
+            navigator.clipboard.writeText(pendingListCache.map(p => p.id).join('\n')).then(() => alert("Códigos copiados!"));
         }
 
-        // --- MENSAGENS ---
         function generateGroupMessage() {
             const city = document.getElementById('filterCity').value;
-            const allPending = currentProcessedData.filter(d => d.city === city && d.status !== 'OK');
-            if(allPending.length === 0) return alert("Parabéns! Nenhuma pendência.");
+            // Apenas pendentes reais
+            const allPending = currentProcessedData.filter(d => d.city === city && d.status !== 'OK' && d.status !== 'DEVOLVIDO');
+            
+            if(allPending.length === 0) return alert("Parabéns! Nenhuma pendência para cobrar.");
 
             const byDriver = {};
-            allPending.forEach(p => {
-                if(!byDriver[p.driver]) byDriver[p.driver] = [];
-                byDriver[p.driver].push(p);
-            });
-
+            allPending.forEach(p => { if(!byDriver[p.driver]) byDriver[p.driver] = []; byDriver[p.driver].push(p); });
             const sortedDrivers = Object.keys(byDriver).sort();
-            let msg = `📢 *RELATÓRIO DE PENDÊNCIAS - ${city}* 📢\n`;
-            msg += `📅 Ref: *${document.getElementById('filterDate').value.split('-').reverse().join('/')}*\n`;
-            msg += `⚠️ Total Pendente: *${allPending.length}*\n`;
-            msg += `-----------------------------------\n\n`;
 
+            let msg = `📢 *RELATÓRIO DE PENDÊNCIAS - ${city}* 📢\n📅 Ref: *${document.getElementById('filterDate').value.split('-').reverse().join('/')}*\n⚠️ Total Pendente: *${allPending.length}*\n-----------------------------------\n\n`;
             sortedDrivers.forEach(driver => {
                 const list = byDriver[driver];
                 msg += `👤 *MOTORISTA: ${driver}* (${list.length})\n`;
-                list.forEach(p => {
-                    msg += `📦 ${p.id} - ${p.client}\n`;
-                });
+                list.forEach(p => { msg += `📦 ${p.id} - ${p.client}\n`; });
                 msg += `-----------------------------------\n`;
             });
             msg += `\n_Favor realizar as baixas urgentemente!_`;
@@ -493,13 +502,9 @@
             const city = document.getElementById('filterCity').value;
             const container = document.getElementById('driver-list-container');
             container.innerHTML = '';
-
             const pendingDrivers = {};
-            currentProcessedData.filter(d => d.city === city && d.status !== 'OK').forEach(d => {
-                if(!pendingDrivers[d.driver]) pendingDrivers[d.driver] = 0;
-                pendingDrivers[d.driver]++;
-            });
-
+            currentProcessedData.filter(d => d.city === city && d.status !== 'OK' && d.status !== 'DEVOLVIDO').forEach(d => { if(!pendingDrivers[d.driver]) pendingDrivers[d.driver] = 0; pendingDrivers[d.driver]++; });
+            
             Object.entries(pendingDrivers).sort((a,b) => b[1] - a[1]).forEach(([name, count]) => {
                 const btn = document.createElement('button');
                 btn.className = "w-full text-left bg-white border p-3 rounded shadow-sm flex justify-between items-center hover:bg-slate-100 transition mb-2";
@@ -512,14 +517,9 @@
 
         function generateIndividualMessage(driver) {
             const city = document.getElementById('filterCity').value;
-            const pending = currentProcessedData.filter(d => d.city === city && d.driver === driver && d.status !== 'OK');
-            let msg = `🚨 *COBRANÇA DE PENDÊNCIAS* 🚨\n`;
-            msg += `👤 *${driver}*\n`;
-            msg += `📍 *${city}* | 📅 ${document.getElementById('filterDate').value.split('-').reverse().join('/')}\n\n`;
-            msg += `*Pendências:*\n`;
-            pending.forEach(p => {
-                msg += `📦 ${p.id}\n   👤 ${p.client}\n\n`;
-            });
+            const pending = currentProcessedData.filter(d => d.city === city && d.driver === driver && d.status !== 'OK' && d.status !== 'DEVOLVIDO');
+            let msg = `🚨 *COBRANÇA DE PENDÊNCIAS* 🚨\n👤 *${driver}*\n📍 *${city}* | 📅 ${document.getElementById('filterDate').value.split('-').reverse().join('/')}\n\n*Pendências:*\n`;
+            pending.forEach(p => { msg += `📦 ${p.id}\n   👤 ${p.client}\n\n`; });
             msg += `🔴 Total: ${pending.length}`;
             document.getElementById('msg-area').value = msg;
             closeModal('modal-driver-select');
