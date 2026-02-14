@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SLA Manager V12.0 - Controle de Devoluções</title>
+    <title>SLA Manager V13.0 - Gestão de Regionais</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         .toggle-checkbox:checked { right: 0; border-color: #68D391; }
         .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
@@ -16,6 +17,7 @@
         @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         .clickable-card { cursor: pointer; transition: transform 0.2s; }
         .clickable-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem; -webkit-appearance: none; appearance: none; }
     </style>
 </head>
 <body class="bg-slate-50 font-sans text-slate-800">
@@ -73,7 +75,7 @@
                 <button onclick="closeModal('modal-driver-select')" class="hover:bg-white/20 px-2 rounded"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-2 bg-yellow-50 border-b text-[10px] text-yellow-700 text-center">
-                *Pacotes no Input 4 (Devolvidos) foram removidos da cobrança.
+                *Pacotes devolvidos não entram na cobrança.
             </div>
             <div id="driver-list-container" class="overflow-y-auto custom-scrollbar p-3 space-y-2 bg-slate-100"></div>
         </div>
@@ -84,20 +86,20 @@
             <div class="flex justify-between items-center mb-3">
                 <div class="flex items-center gap-3">
                     <div class="bg-white/10 p-2 rounded-lg">
-                        <i class="fas fa-undo-alt text-xl text-orange-400"></i>
+                        <i class="fas fa-map-marked-alt text-xl text-teal-400"></i>
                     </div>
                     <div>
-                        <h1 class="text-lg font-bold tracking-tight uppercase leading-tight">SLA Manager V12.0</h1>
-                        <p class="text-[10px] text-gray-400">Filtro de Devoluções Ativo</p>
+                        <h1 class="text-lg font-bold tracking-tight uppercase leading-tight">SLA Manager V13.0</h1>
+                        <p class="text-[10px] text-gray-400">Gestão por Regionais</p>
                     </div>
                 </div>
                 
                 <div class="flex items-center bg-slate-800 px-3 py-1.5 rounded-full border border-slate-600">
                     <div class="relative inline-block w-8 mr-2 align-middle select-none">
-                        <input type="checkbox" id="toggleQuiri" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 left-0" checked/>
-                        <label for="toggleQuiri" class="toggle-label block overflow-hidden h-4 rounded-full bg-slate-600 cursor-pointer"></label>
+                        <input type="checkbox" id="toggleTriagem" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 left-0" checked/>
+                        <label for="toggleTriagem" class="toggle-label block overflow-hidden h-4 rounded-full bg-slate-600 cursor-pointer"></label>
                     </div>
-                    <label for="toggleQuiri" class="text-[10px] font-bold text-white cursor-pointer select-none uppercase">Região Quirinópolis</label>
+                    <label for="toggleTriagem" class="text-[10px] font-bold text-white cursor-pointer select-none uppercase">Erros de Triagem</label>
                 </div>
             </div>
 
@@ -107,7 +109,15 @@
                         <label class="text-[9px] text-gray-400 font-bold uppercase ml-1">Data (Col M)</label>
                         <input type="date" id="filterDate" class="bg-slate-700 border border-slate-600 text-white text-xs rounded p-2 h-9 font-bold outline-none focus:border-blue-500 w-32">
                     </div>
-                    <div class="flex flex-col flex-1 lg:w-48">
+                    <div class="flex flex-col flex-1 lg:w-36">
+                        <label class="text-[9px] text-gray-400 font-bold uppercase ml-1">Regional</label>
+                        <select id="filterRegion" class="bg-slate-700 border border-slate-600 text-white text-xs rounded p-2 h-9 font-bold w-full outline-none focus:border-blue-500 cursor-pointer">
+                            <option value="">Todas</option>
+                            <option value="RV">Rio Verde</option>
+                            <option value="JATAI">Jataí</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col flex-1 lg:w-40">
                         <label class="text-[9px] text-gray-400 font-bold uppercase ml-1">Cidade</label>
                         <select id="filterCity" class="bg-slate-700 border border-slate-600 text-white text-xs rounded p-2 h-9 font-bold w-full outline-none focus:border-blue-500 cursor-pointer">
                             <option value="">Todas Cidades</option>
@@ -186,7 +196,7 @@
                         <i id="table-icon" class="fas fa-city mr-3 text-blue-400 text-lg"></i>
                         <div>
                             <h3 class="font-bold text-xs uppercase" id="table-title">Visão Geral</h3>
-                            <p class="text-[9px] text-slate-400" id="table-subtitle">Devoluções não contam como pendência</p>
+                            <p class="text-[9px] text-slate-400" id="table-subtitle">Devoluções e Triagem</p>
                         </div>
                     </div>
                     
@@ -224,7 +234,15 @@
         let hasBase = false, hasUpdate = false, hasRecipient = false, hasReturns = false;
         let currentProcessedData = [];
 
-        const BLOCK_LIST = ["QUIRINOPOLIS", "SAO SIMAO", "ITARUMA", "PARANAIGUARA", "CACHOEIRA ALTA", "APORE", "GOUVELANDIA", "CACU", "INACIOLANDIA", "ITAJA", "APARECIDA DO RIO DOCE", "CASTELANDIA", "LAGOA SANTA"];
+        // DEFINIÇÃO DAS REGIONAIS
+        const REGION_RV = [
+            "RIO VERDE", "ACREUNA", "SANTA HELENA DE GOIAS", "MONTIVIDIU", 
+            "MAURILANDIA", "SANTO ANTONIO DA BARRA", "TURVELANDIA", "PORTEIRAO"
+        ];
+        
+        const REGION_JATAI = [
+            "JATAI", "MINEIROS", "SANTA RITA DO ARAGUAIA", "PEROLANDIA", "PORTELANDIA"
+        ];
 
         document.getElementById('filterDate').value = new Date().toISOString().split('T')[0];
 
@@ -234,7 +252,8 @@
         document.getElementById('fileReturns').addEventListener('change', (e) => handleFile(e, 'returns'));
         
         document.getElementById('filterDate').addEventListener('change', runDashboard);
-        document.getElementById('toggleQuiri').addEventListener('change', runDashboard);
+        document.getElementById('filterRegion').addEventListener('change', runDashboard); // Novo listener
+        document.getElementById('toggleTriagem').addEventListener('change', runDashboard); // Novo listener
         document.getElementById('filterCity').addEventListener('change', renderTable);
 
         function cleanID(val) {
@@ -296,9 +315,9 @@
             document.getElementById('audit-panel').classList.remove('hidden');
 
             const target = document.getElementById('filterDate').value;
-            const includeQuiri = document.getElementById('toggleQuiri').checked;
+            const includeTriagem = document.getElementById('toggleTriagem').checked;
+            const selectedRegion = document.getElementById('filterRegion').value;
             
-            // Mapas
             const statusMap = new Map();
             updateData.forEach(row => {
                 const id = cleanID(row.A);
@@ -332,25 +351,35 @@
                 
                 if (d === target) {
                     const id = cleanID(row.A);
-                    const city = String(row.AD || "").trim();
-                    const cityNorm = city.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-                    if (!includeQuiri && BLOCK_LIST.includes(cityNorm)) return;
-                    cities.add(city);
+                    const cityRaw = String(row.AD || "NÃO IDENTIFICADA").trim();
+                    const cityNorm = cityRaw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
+                    // LÓGICA DE REGIONAIS E TRIAGEM
+                    const isRV = REGION_RV.includes(cityNorm);
+                    const isJatai = REGION_JATAI.includes(cityNorm);
+                    const isErroTriagem = !isRV && !isJatai;
+
+                    // Se a chave de Erro de Triagem estiver desativada e for um erro, ignora.
+                    if (!includeTriagem && isErroTriagem) return;
+                    
+                    // Se estiver filtrando por uma Regional específica
+                    if (selectedRegion === 'RV' && !isRV) return;
+                    if (selectedRegion === 'JATAI' && !isJatai) return;
+
+                    // Marcador de visual para erro de triagem
+                    const cityDisplay = isErroTriagem ? `${cityRaw} (Triagem)` : cityRaw;
+                    cities.add(cityDisplay);
 
                     let status = 'PENDENTE';
                     const baseHora = String(row.Q || "").trim();
                     const up = statusMap.get(id);
 
-                    // 1. Verificação de Entrega
                     if (baseHora !== "" || (up && (up.mark.includes("RECEBIMENTO") || up.mark.includes("ENTREGUE")))) {
                         status = 'OK';
-                    }
-                    // 2. Verificação de Devolução (Prioridade sobre pendência)
-                    else if (returnsSet.has(id)) {
+                    } else if (returnsSet.has(id)) {
                         status = 'DEVOLVIDO';
                     }
 
-                    // 3. Definição do Motorista (3 > 2 > 1)
                     let driverBase = cleanDriverName(row.P);
                     let driverUp = up ? up.driver : null;
                     let driverRec = recipientMap.get(id) ? recipientMap.get(id).driver : null;
@@ -361,7 +390,7 @@
                     const clientName = clientInfo ? clientInfo.client : "NÃO LOCALIZADO";
                     if(recipientMap.has(id)) matches++;
 
-                    currentProcessedData.push({ id, city, driver: finalDriver, status, client: clientName });
+                    currentProcessedData.push({ id, city: cityDisplay, driver: finalDriver, status, client: clientName });
                 }
             });
 
@@ -403,7 +432,8 @@
                 });
             }
 
-            document.getElementById('table-title').innerText = isDriver ? `Praça: ${city}` : "Visão Geral por Cidade";
+            document.getElementById('table-title').innerText = isDriver ? `Praça: ${city}` : "Visão Geral";
+            document.getElementById('table-subtitle').innerText = isDriver ? "Desempenho por Motorista" : "Desempenho por Cidade";
             document.getElementById('col-name').innerText = isDriver ? "Motorista" : "Cidade";
             document.getElementById('table-icon').className = isDriver ? "fas fa-user-tie mr-3 text-orange-400 text-lg" : "fas fa-city mr-3 text-blue-400 text-lg";
 
@@ -420,14 +450,13 @@
                 else { stats[key].pend++; kpi.pend++; }
             });
 
-            // Metas
             const globalTarget = Math.ceil(kpi.t * 0.95);
             const globalMissing = globalTarget - kpi.ok;
             
             document.getElementById('kpi-total').innerText = kpi.t;
             document.getElementById('kpi-entregue').innerText = kpi.ok;
             document.getElementById('kpi-pendente').innerText = kpi.pend;
-            document.getElementById('kpi-devolvido').innerText = kpi.dev; // Novo KPI
+            document.getElementById('kpi-devolvido').innerText = kpi.dev;
             document.getElementById('kpi-gap').innerText = globalMissing > 0 ? globalMissing : 0;
             document.getElementById('kpi-sla').innerText = kpi.t > 0 ? ((kpi.ok/kpi.t)*100).toFixed(1) + "%" : "0.0%";
 
@@ -436,10 +465,16 @@
                 const target = Math.ceil(row.t * 0.95);
                 const missing = target - row.ok;
                 const gapDisplay = missing > 0 ? missing : '<span class="text-emerald-500 font-bold"><i class="fas fa-check"></i></span>';
+                
+                // Formatação para erros de triagem
+                const isTriagem = row.n.includes('(Triagem)');
+                const rowNameHTML = isTriagem 
+                    ? `<span class="text-orange-500 font-bold">${row.n}</span>` 
+                    : `<span class="font-bold text-slate-700">${row.n}</span>`;
 
                 return `
                 <tr class="hover:bg-slate-50 border-b transition">
-                    <td class="px-4 py-3 font-bold text-slate-700 truncate max-w-xs">${row.n}</td>
+                    <td class="px-4 py-3 truncate max-w-xs">${rowNameHTML}</td>
                     <td class="px-4 py-3 text-center font-mono">${row.t}</td>
                     <td class="px-4 py-3 text-center text-emerald-600 font-bold">${row.ok}</td>
                     <td class="px-4 py-3 text-center text-orange-500">${row.dev}</td>
@@ -450,11 +485,9 @@
             }).join('');
         }
 
-        // --- SISTEMAS DE COBRANÇA (FILTRANDO DEVOLVIDOS) ---
         let pendingListCache = [];
         function openPendingList() {
             const city = document.getElementById('filterCity').value;
-            // Filtra o que não é OK e nem Devolvido
             pendingListCache = currentProcessedData.filter(d => d.status !== 'OK' && d.status !== 'DEVOLVIDO');
             if (city !== "") pendingListCache = pendingListCache.filter(d => d.city === city);
             
@@ -477,7 +510,6 @@
 
         function generateGroupMessage() {
             const city = document.getElementById('filterCity').value;
-            // Apenas pendentes reais
             const allPending = currentProcessedData.filter(d => d.city === city && d.status !== 'OK' && d.status !== 'DEVOLVIDO');
             
             if(allPending.length === 0) return alert("Parabéns! Nenhuma pendência para cobrar.");
@@ -486,7 +518,7 @@
             allPending.forEach(p => { if(!byDriver[p.driver]) byDriver[p.driver] = []; byDriver[p.driver].push(p); });
             const sortedDrivers = Object.keys(byDriver).sort();
 
-            let msg = `📢 *RELATÓRIO DE PENDÊNCIAS - ${city}* 📢\n📅 Ref: *${document.getElementById('filterDate').value.split('-').reverse().join('/')}*\n⚠️ Total Pendente: *${allPending.length}*\n-----------------------------------\n\n`;
+            let msg = `📢 *RELATÓRIO DE PENDÊNCIAS - ${city.replace(' (Triagem)', '')}* 📢\n📅 Ref: *${document.getElementById('filterDate').value.split('-').reverse().join('/')}*\n⚠️ Total Pendente: *${allPending.length}*\n-----------------------------------\n\n`;
             sortedDrivers.forEach(driver => {
                 const list = byDriver[driver];
                 msg += `👤 *MOTORISTA: ${driver}* (${list.length})\n`;
@@ -518,7 +550,7 @@
         function generateIndividualMessage(driver) {
             const city = document.getElementById('filterCity').value;
             const pending = currentProcessedData.filter(d => d.city === city && d.driver === driver && d.status !== 'OK' && d.status !== 'DEVOLVIDO');
-            let msg = `🚨 *COBRANÇA DE PENDÊNCIAS* 🚨\n👤 *${driver}*\n📍 *${city}* | 📅 ${document.getElementById('filterDate').value.split('-').reverse().join('/')}\n\n*Pendências:*\n`;
+            let msg = `🚨 *COBRANÇA DE PENDÊNCIAS* 🚨\n👤 *${driver}*\n📍 *${city.replace(' (Triagem)', '')}* | 📅 ${document.getElementById('filterDate').value.split('-').reverse().join('/')}\n\n*Pendências:*\n`;
             pending.forEach(p => { msg += `📦 ${p.id}\n   👤 ${p.client}\n\n`; });
             msg += `🔴 Total: ${pending.length}`;
             document.getElementById('msg-area').value = msg;
