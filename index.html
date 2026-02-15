@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SLA Manager V13.0 - Gestão de Regionais</title>
+    <title>SLA Manager V13.1 - Gestão de Regionais</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -89,7 +89,7 @@
                         <i class="fas fa-map-marked-alt text-xl text-teal-400"></i>
                     </div>
                     <div>
-                        <h1 class="text-lg font-bold tracking-tight uppercase leading-tight">SLA Manager V13.0</h1>
+                        <h1 class="text-lg font-bold tracking-tight uppercase leading-tight">SLA Manager V13.1</h1>
                         <p class="text-[10px] text-gray-400">Gestão por Regionais</p>
                     </div>
                 </div>
@@ -241,7 +241,7 @@
         ];
         
         const REGION_JATAI = [
-            "JATAI", "MINEIROS", "SANTA RITA DO ARAGUAIA", "PEROLANDIA", "PORTELANDIA"
+            "JATAI", "MINEIROS", "SANTA RITA DO ARAGUAIA", "PEROLANDIA", "PORTELANDIA", "SERRANOPOLIS"
         ];
 
         document.getElementById('filterDate').value = new Date().toISOString().split('T')[0];
@@ -252,8 +252,8 @@
         document.getElementById('fileReturns').addEventListener('change', (e) => handleFile(e, 'returns'));
         
         document.getElementById('filterDate').addEventListener('change', runDashboard);
-        document.getElementById('filterRegion').addEventListener('change', runDashboard); // Novo listener
-        document.getElementById('toggleTriagem').addEventListener('change', runDashboard); // Novo listener
+        document.getElementById('filterRegion').addEventListener('change', runDashboard); 
+        document.getElementById('toggleTriagem').addEventListener('change', runDashboard); 
         document.getElementById('filterCity').addEventListener('change', renderTable);
 
         function cleanID(val) {
@@ -359,14 +359,10 @@
                     const isJatai = REGION_JATAI.includes(cityNorm);
                     const isErroTriagem = !isRV && !isJatai;
 
-                    // Se a chave de Erro de Triagem estiver desativada e for um erro, ignora.
                     if (!includeTriagem && isErroTriagem) return;
-                    
-                    // Se estiver filtrando por uma Regional específica
                     if (selectedRegion === 'RV' && !isRV) return;
                     if (selectedRegion === 'JATAI' && !isJatai) return;
 
-                    // Marcador de visual para erro de triagem
                     const cityDisplay = isErroTriagem ? `${cityRaw} (Triagem)` : cityRaw;
                     cities.add(cityDisplay);
 
@@ -466,7 +462,6 @@
                 const missing = target - row.ok;
                 const gapDisplay = missing > 0 ? missing : '<span class="text-emerald-500 font-bold"><i class="fas fa-check"></i></span>';
                 
-                // Formatação para erros de triagem
                 const isTriagem = row.n.includes('(Triagem)');
                 const rowNameHTML = isTriagem 
                     ? `<span class="text-orange-500 font-bold">${row.n}</span>` 
